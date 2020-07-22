@@ -18,7 +18,7 @@ let package = Package(
     targets: [
         .systemLibrary(name: "Clibgit2", pkgConfig: "libgit2", providers: [
             .brew(["libgit2"]),
-            .apt(["libgit2-dev"])
+            .apt(["libgit2-1.0"])
         ]),
         .target(
             name: "Git",

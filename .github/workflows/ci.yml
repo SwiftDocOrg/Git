@@ -33,7 +33,7 @@ jobs:
         uses: actions/checkout@v1
       - name: Install libgit2
         run: |
-          apt-get -qq update
-          apt-get install -y libgit2-dev
+          apt-get update
+          apt-get install -t experimental -y libgit2-1.0
       - name: Build and Test
         run: swift test --enable-test-discovery
