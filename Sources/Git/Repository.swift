@@ -10,7 +10,7 @@ public final class Repository {
         case attached(Branch)
         case detached(Commit)
 
-        var attached: Bool {
+        public var attached: Bool {
             switch self {
             case .attached:
                 return true
@@ -19,11 +19,11 @@ public final class Repository {
             }
         }
 
-        var detached: Bool {
+        public var detached: Bool {
             return !attached
         }
 
-        var branch: Branch? {
+        public var branch: Branch? {
             switch self {
             case .attached(let branch):
                 return branch
@@ -32,7 +32,7 @@ public final class Repository {
             }
         }
 
-        var commit: Commit? {
+        public var commit: Commit? {
             switch self {
             case .attached:
                 return nil
