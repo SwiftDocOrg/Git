@@ -30,17 +30,17 @@ public class Object /*: Identifiable*/ {
         }
     }
 
-    class func type(of pointer: OpaquePointer) -> Object.Type? {
-        switch git_tree_entry_type(pointer) {
-        case GIT_OBJECT_ANY:
+    class func type(of value: git_object_t?) -> Object.Type? {
+        switch value {
+        case GIT_OBJECT_ANY?:
             return Object.self
-        case GIT_OBJECT_COMMIT:
+        case GIT_OBJECT_COMMIT?:
             return Commit.self
-        case GIT_OBJECT_TREE:
+        case GIT_OBJECT_TREE?:
             return Tree.self
-        case GIT_OBJECT_BLOB:
+        case GIT_OBJECT_BLOB?:
             return Blob.self
-        case GIT_OBJECT_TAG:
+        case GIT_OBJECT_TAG?:
             return Tag.Annotation.self
         // TODO:
         //        case GIT_OBJECT_OFS_DELTA,

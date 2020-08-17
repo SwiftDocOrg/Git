@@ -15,25 +15,54 @@ final class GitTests: XCTestCase {
         let directoryURL = repository.workingDirectory
         XCTAssertNotNil(directoryURL)
 
-        let head = repository.head
-        XCTAssertEqual(head?.branch?.name, "refs/heads/master")
-        XCTAssertEqual(head?.attached, true)
+        do {
+            let head = repository.head
+            XCTAssertEqual(head?.branch?.name, "refs/heads/master")
+            XCTAssertEqual(head?.attached, true)
 
-        let master = try repository.branch(named: "refs/heads/master")
-        XCTAssertEqual(master?.shortName, "master")
-        XCTAssertEqual(master?.commit?.message?.trimmingCharacters(in: .whitespacesAndNewlines), "Initial commit")
-        XCTAssertEqual(master?.commit?.id.description, "6cf6579c191e20a5a77a7e3176d37a8d654c9fc4")
-        XCTAssertEqual(master?.commit?.author.name, "Mattt")
+            let entries = head?.branch?.commit?.tree?.entries
+            XCTAssertEqual(entries?.count, 6)
 
-        let index = repository.index
-        let entries = index?.entries.compactMap { $0.blob }
-        XCTAssertEqual(entries?.count, 9)
+            XCTAssert(entries?["README.md"]?.object is Blob)
+            XCTAssert(entries?["Sources"]?.object is Tree)
 
-        let revisions = try repository.revisions { walker in
-            try walker.pushHead()
+            do {
+                let blob = entries?["README.md"]?.object as? Blob
+                XCTAssertNotNil(blob)
+
+                let string = String(data: blob!.data, encoding: .utf8)
+                XCTAssert(string!.starts(with: "# StringLocationConverter"))
+            }
+
+            do {
+                let tree = entries?["Sources"]?.object as? Tree
+                XCTAssertNotNil(tree)
+
+                XCTAssertEqual(tree?.entries.count, 1)
+                XCTAssertEqual(tree?.entries.first?.key, "StringLocationConverter")
+                XCTAssert(tree?.entries.first?.value.object is Tree)
+            }
         }
 
-        XCTAssertEqual(Array(revisions.compactMap { $0.message }), ["Initial commit\n"])
+        do {
+            let master = try repository.branch(named: "refs/heads/master")
+            XCTAssertEqual(master?.shortName, "master")
+            XCTAssertEqual(master?.commit?.message?.trimmingCharacters(in: .whitespacesAndNewlines), "Initial commit")
+            XCTAssertEqual(master?.commit?.id.description, "6cf6579c191e20a5a77a7e3176d37a8d654c9fc4")
+            XCTAssertEqual(master?.commit?.author.name, "Mattt")
+        }
+
+        do {
+            let index = repository.index
+            let entries = index?.entries.compactMap { $0.blob }
+            XCTAssertEqual(entries?.count, 9)
+
+            let revisions = try repository.revisions { walker in
+                try walker.pushHead()
+            }
+
+            XCTAssertEqual(Array(revisions.compactMap { $0.message }), ["Initial commit\n"])
+        }
     }
 }
 

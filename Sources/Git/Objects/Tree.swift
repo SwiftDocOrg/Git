@@ -5,8 +5,25 @@ public final class Tree: Object {
     class override var type: git_object_t { return GIT_OBJECT_TREE }
 
     /// A tree entry.
-    public struct Entry: Hashable {
-        private(set) var pointer: OpaquePointer!
+    public final class Entry {
+        private(set) var tree: Tree
+        private(set) var index: Int
+
+        var pointer: OpaquePointer {
+            git_tree_entry_byindex(tree.pointer, index)
+        }
+
+        /// The object corresponding to the tree entry.
+        public var object: Object? {
+            var pointer: OpaquePointer?
+            do {
+                try wrap { git_tree_entry_to_object(&pointer, tree.owner.pointer, self.pointer)}
+            } catch {
+                return nil
+            }
+
+            return Object.type(of: git_object_type(pointer!))?.init(pointer!)
+        }
 
         /// The file attributes of a tree entry
         public var attributes: Int32 {
@@ -18,24 +35,16 @@ public final class Tree: Object {
             return String(validatingUTF8: git_tree_entry_name(pointer))!
         }
 
-        /// The object corresponding to the tree entry.
-        public var object: Object? {
-            return Object.type(of: pointer)?.init(pointer)
-        }
-
-        init(_ pointer: OpaquePointer) {
-            self.pointer = pointer
-        }
-
-        public init(_ object: Object) {
-            self.pointer = object.pointer
+        init(in tree: Tree, at index: Int) {
+            self.tree = tree
+            self.index = index
         }
     }
 
     public var entries: [String: Entry] {
         var entries: [String: Entry] = [:]
         for index in 0..<git_tree_entrycount(pointer) {
-            let entry = Entry(git_tree_entry_byindex(pointer, index)!)
+            let entry = Entry(in: self, at: index)
             entries[entry.name] = entry
         }
 
