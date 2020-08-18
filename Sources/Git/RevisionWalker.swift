@@ -108,26 +108,26 @@ extension Repository {
         }
 
         func pushGlob(_ glob: String) throws {
-            try glob.withCString { string in
-                try wrap { git_revwalk_push_glob(pointer, string) }
+            try glob.withCString { cString in
+                try wrap { git_revwalk_push_glob(pointer, cString) }
             }
         }
 
         func pushRange(_ range: String) throws {
-            try range.withCString { string in
-                try wrap { git_revwalk_push_range(pointer, string) }
+            try range.withCString { cString in
+                try wrap { git_revwalk_push_range(pointer, cString) }
             }
         }
 
         func pushReference(named name: String) throws {
-            try name.withCString { string in
-                try wrap { git_revwalk_push_ref(pointer, string) }
+            try name.withCString { cString in
+                try wrap { git_revwalk_push_ref(pointer, cString) }
             }
         }
 
         func hideGlob(_ glob: String) throws {
-            try glob.withCString { string in
-                try wrap { git_revwalk_hide_glob(pointer, string) }
+            try glob.withCString { cString in
+                try wrap { git_revwalk_hide_glob(pointer, cString) }
             }
         }
 
@@ -141,8 +141,8 @@ extension Repository {
         }
 
         func hideReference(named name: String) throws {
-            try name.withCString { string in
-                try wrap { git_revwalk_hide_ref(pointer, string) }
+            try name.withCString { cString in
+                try wrap { git_revwalk_hide_ref(pointer, cString) }
             }
         }
 

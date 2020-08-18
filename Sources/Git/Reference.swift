@@ -72,8 +72,8 @@ public class Reference/*: Identifiable */ {
     public static func normalize(name: String, format: Format) throws -> String {
         let length = name.underestimatedCount * 2
         let string = UnsafeMutablePointer<Int8>.allocate(capacity: length)
-        try name.withCString { name in
-            try wrap { git_reference_normalize_name(string, length, name, format.rawValue.rawValue) }
+        try name.withCString { cString in
+            try wrap { git_reference_normalize_name(string, length, cString, format.rawValue.rawValue) }
         }
         return String(bytesNoCopy: string, length: length, encoding: .ascii, freeWhenDone: true)!
     }
