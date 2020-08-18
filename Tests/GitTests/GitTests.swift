@@ -5,13 +5,14 @@ import Foundation
 
 final class GitTests: XCTestCase {
     func testReadRepository() throws {
-        let url = URL(fileURLWithPath: temporaryURL().path)
-        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        let remoteURL = URL(string: "https://github.com/SwiftDocOrg/StringLocationConverter.git")!
 
-        let git = try which("git").path
-        try shell(git, with: ["clone", "https://github.com/SwiftDocOrg/StringLocationConverter.git", url.path])
+        let localURL = URL(fileURLWithPath: temporaryURL().path)
+        try FileManager.default.createDirectory(at: localURL, withIntermediateDirectories: true)
 
-        let repository = try Repository(url)
+        try Repository.clone(from: remoteURL, to: localURL)
+        let repository = try Repository.open(at: localURL)
+
         let directoryURL = repository.workingDirectory
         XCTAssertNotNil(directoryURL)
 
@@ -20,14 +21,14 @@ final class GitTests: XCTestCase {
             XCTAssertEqual(head?.branch?.name, "refs/heads/master")
             XCTAssertEqual(head?.attached, true)
 
-            let entries = head?.branch?.commit?.tree?.entries
-            XCTAssertEqual(entries?.count, 6)
+            let tree = head?.branch?.commit?.tree
+            XCTAssertEqual(tree?.count, 6)
 
-            XCTAssert(entries?["README.md"]?.object is Blob)
-            XCTAssert(entries?["Sources"]?.object is Tree)
+            XCTAssert(tree?["README.md"]?.object is Blob)
+            XCTAssert(tree?["Sources"]?.object is Tree)
 
             do {
-                let blob = entries?["README.md"]?.object as? Blob
+                let blob = tree?["README.md"]?.object as? Blob
                 XCTAssertNotNil(blob)
 
                 let string = String(data: blob!.data, encoding: .utf8)
@@ -35,12 +36,12 @@ final class GitTests: XCTestCase {
             }
 
             do {
-                let tree = entries?["Sources"]?.object as? Tree
-                XCTAssertNotNil(tree)
+                let subtree = tree?["Sources"]?.object as? Tree
+                XCTAssertNotNil(subtree)
 
-                XCTAssertEqual(tree?.entries.count, 1)
-                XCTAssertEqual(tree?.entries.first?.key, "StringLocationConverter")
-                XCTAssert(tree?.entries.first?.value.object is Tree)
+                XCTAssertEqual(subtree?.count, 1)
+                XCTAssertNotNil(subtree?["StringLocationConverter"])
+                XCTAssert(subtree?["StringLocationConverter"]?.object is Tree)
             }
         }
 

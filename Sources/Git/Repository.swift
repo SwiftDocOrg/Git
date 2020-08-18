@@ -5,43 +5,6 @@ public final class Repository {
     private(set) var pointer: OpaquePointer!
     private var managed: Bool = false
 
-    /// The repository `HEAD` reference.
-    public enum Head: Equatable {
-        case attached(Branch)
-        case detached(Commit)
-
-        public var attached: Bool {
-            switch self {
-            case .attached:
-                return true
-            case .detached:
-                return false
-            }
-        }
-
-        public var detached: Bool {
-            return !attached
-        }
-
-        public var branch: Branch? {
-            switch self {
-            case .attached(let branch):
-                return branch
-            case .detached:
-                return nil
-            }
-        }
-
-        public var commit: Commit? {
-            switch self {
-            case .attached:
-                return nil
-            case .detached(let commit):
-                return commit
-            }
-        }
-    }
-
     init(_ pointer: OpaquePointer) {
         self.pointer = pointer
     }
@@ -53,8 +16,10 @@ public final class Repository {
 
     // MARK: -
 
-    public init(_ url: URL) throws {
+    public class func open(at url: URL) throws -> Repository {
+        var pointer: OpaquePointer?
         try wrap { git_repository_open(&pointer, url.path) }
+        return Repository(pointer!)
     }
 
     public class func create(at url: URL, bare: Bool = false) throws -> Repository {
@@ -63,8 +28,33 @@ public final class Repository {
         return Repository(pointer!)
     }
 
-    // TODO: Implement
-    //    public class func discover(at url: URL) throws -> Repository { }
+    public class func discover(at url: URL, acrossFileSystems: Bool = true, stoppingAt ceilingDirectories: [String] = []) throws -> Repository {
+        var buffer = git_buf()
+        defer { git_buf_free(&buffer) }
+
+        try url.withUnsafeFileSystemRepresentation { path in
+            try wrap { git_repository_discover(&buffer, path, acrossFileSystems ? 1 : 0, ceilingDirectories.joined(separator: pathListSeparator).cString(using: .utf8)) }
+        }
+
+        let discoveredURL = URL(fileURLWithPath: String(cString: buffer.ptr))
+        
+        return try Repository.open(at: discoveredURL)
+    }
+
+    @discardableResult
+    public static func clone(from remoteURL: URL,
+                             to localURL: URL,
+                             configuration: Clone.Configuration = .default) throws -> Repository {
+        var pointer: OpaquePointer? = nil
+
+        var options = configuration.rawValue
+        let remoteURLString = remoteURL.isFileURL ? remoteURL.path : remoteURL.absoluteString
+        try localURL.withUnsafeFileSystemRepresentation { path in
+            try wrap { git_clone(&pointer, remoteURLString, path, &options) }
+        }
+
+        return try Repository.open(at: localURL)
+    }
 
     // MARK: -
 
@@ -122,9 +112,9 @@ public final class Repository {
         try wrap { git_reference_lookup(&pointer, self.pointer, name) }
 
         guard git_reference_is_branch(pointer) != 0 ||
-            git_reference_is_remote(pointer) != 0
-            else {
-                return nil
+                git_reference_is_remote(pointer) != 0
+        else {
+            return nil
         }
 
         return Branch(pointer!)
@@ -134,7 +124,7 @@ public final class Repository {
      Lookup an object by ID.
 
      - Parameters:
-        - id: The object ID.
+     - id: The object ID.
      - Throws: An error if no object exists for the
      - Returns: The corresponding object.
      */
@@ -152,9 +142,9 @@ public final class Repository {
      Returns the revision matching the provided specification.
 
      - Parameters:
-        - specification: A revision specification.
+     - specification: A revision specification.
      - Returns: A tuple containing the commit and/or reference
-                matching the specification.
+     matching the specification.
      */
     public func revision(matching specification: String) throws -> (Commit?, Reference?) {
         var commitPointer: OpaquePointer?
@@ -171,8 +161,8 @@ public final class Repository {
      Calculates the number of unique revisions between two commits.
 
      - Parameters:
-        - local: The local commit.
-        - upstream: The upstream commit.
+     - local: The local commit.
+     - upstream: The upstream commit.
      - Returns: A tuple with the number of commits `ahead` and `behind`.
      */
     public func distance(from local: Commit, to upstream: Commit) throws -> (ahead: Int, behind: Int) {
@@ -180,5 +170,439 @@ public final class Repository {
         var localOID = local.id.rawValue, upstreamOID = upstream.id.rawValue
         try wrap { git_graph_ahead_behind(&ahead, &behind, pointer, &localOID, &upstreamOID) }
         return (ahead, behind)
+    }
+}
+
+// MARK: -
+
+extension Repository {
+    /// The repository `HEAD` reference.
+    public enum Head: Equatable {
+        case attached(Branch)
+        case detached(Commit)
+
+        public var attached: Bool {
+            switch self {
+            case .attached:
+                return true
+            case .detached:
+                return false
+            }
+        }
+
+        public var detached: Bool {
+            return !attached
+        }
+
+        public var branch: Branch? {
+            switch self {
+            case .attached(let branch):
+                return branch
+            case .detached:
+                return nil
+            }
+        }
+
+        public var commit: Commit? {
+            switch self {
+            case .attached:
+                return nil
+            case .detached(let commit):
+                return commit
+            }
+        }
+    }
+}
+
+// MARK: -
+
+extension Repository {
+    public enum Clone {
+        public enum Local /* : internal RawRepresentable */ {
+            /**
+             * Auto-detect (default), libgit2 will bypass the git-aware
+             * transport for local paths, but use a normal fetch for
+             * `file://` urls.
+             */
+            case automatic
+
+            /// Bypass the git-aware transport even for a `file://` url.
+            case yes(useHardLinks: Bool = true)
+
+            /// Do no bypass the git-aware transport
+            case no
+
+            init(rawValue: git_clone_local_t) {
+                switch rawValue {
+                case GIT_CLONE_LOCAL:
+                    self = .yes(useHardLinks: true)
+                case GIT_CLONE_LOCAL_NO_LINKS:
+                    self = .yes(useHardLinks: false)
+                case GIT_CLONE_NO_LOCAL:
+                    self = .no
+                default:
+                    self = .automatic
+                }
+            }
+
+            public var rawValue: git_clone_local_t {
+                switch self {
+                case .automatic:
+                    return GIT_CLONE_LOCAL_AUTO
+                case .yes(useHardLinks: true):
+                    return GIT_CLONE_LOCAL
+                case .yes(useHardLinks: false):
+                    return GIT_CLONE_LOCAL_NO_LINKS
+                case .no:
+                    return GIT_CLONE_NO_LOCAL
+                }
+            }
+        }
+
+        public struct Configuration {
+            var rawValue: git_clone_options
+
+            public static var `default` = try! Configuration()
+
+            init() throws {
+                let pointer = UnsafeMutablePointer<git_clone_options>.allocate(capacity: 1)
+                defer { pointer.deallocate() }
+                try wrap { git_clone_options_init(pointer, numericCast(GIT_CLONE_OPTIONS_VERSION)) }
+                rawValue = pointer.pointee
+            }
+
+            init(rawValue: git_clone_options) {
+                self.rawValue = rawValue
+            }
+
+            public var checkoutConfiguration: Repository.Checkout.Configuration {
+                get {
+                    Repository.Checkout.Configuration(rawValue: rawValue.checkout_opts)
+                }
+
+                set {
+                    rawValue.checkout_opts = newValue.rawValue
+                }
+            }
+
+            public var fetchConfiguration: Remote.Fetch.Configuration {
+                get {
+                    Remote.Fetch.Configuration(rawValue: rawValue.fetch_opts)
+                }
+
+                set {
+                    rawValue.fetch_opts = newValue.rawValue
+                }
+            }
+
+            /// Set to zero (false) to create a standard repo, or non-zero for a bare repo
+            public var bare: Bool {
+                get {
+                    rawValue.bare != 0
+                }
+
+                set {
+                    rawValue.bare = newValue ? 1 : 0
+                }
+            }
+
+            /// Whether to use a fetch or copy the object database.
+            public var local: Local {
+                get {
+                    Local(rawValue: rawValue.local)
+                }
+
+                set {
+                    rawValue.local = newValue.rawValue
+                }
+            }
+
+            /// The name of the branch to checkout. NULL means use the remote's default branch.
+            public var checkoutBranch: String? {
+                get {
+                    guard let cString = rawValue.checkout_branch else { return nil }
+                    return String(validatingUTF8: cString)
+                }
+
+                set {
+                    newValue?.withCString({ cString in rawValue.checkout_branch = cString })
+                }
+            }
+        }
+    }
+}
+
+// MARK: -
+
+extension Repository {
+    public enum Checkout {
+        public enum Strategy {
+            case force
+            case safe
+        }
+
+        public enum ConflictResolution{
+            case skipUnmerged
+            case useOurs
+            case useTheirs
+        }
+
+        public struct Configuration {
+            var rawValue: git_checkout_options
+
+            public static var `default` = try! Configuration()
+
+            init() throws {
+                let pointer = UnsafeMutablePointer<git_checkout_options>.allocate(capacity: 1)
+                defer { pointer.deallocate() }
+                try wrap { git_checkout_options_init(pointer, numericCast(GIT_CHECKOUT_OPTIONS_VERSION)) }
+                rawValue = pointer.pointee
+            }
+
+            init(rawValue: git_checkout_options) {
+                self.rawValue = rawValue
+            }
+
+            /// Don't apply filters like CRLF conversion
+            public var disableFilters: Bool {
+                get {
+                    return rawValue.disable_filters != 0
+                }
+
+                set {
+                    rawValue.disable_filters = newValue ? 1 : 0
+                }
+            }
+
+            /// Default is 0755
+            public var directoryMode: Int {
+                get {
+                    return numericCast(rawValue.dir_mode)
+                }
+
+                set {
+                    rawValue.dir_mode = numericCast(newValue)
+                }
+            }
+
+            /// Default is 0644 or 0755 as dictated by blob
+            public var fileMode: Int {
+                get {
+                    return numericCast(rawValue.file_mode)
+                }
+
+                set {
+                    rawValue.file_mode = numericCast(newValue)
+                }
+            }
+
+            // MARK: Strategy
+
+            /// Default will be a safe checkout
+            public var strategy: Strategy? {
+                get {
+                    return Strategy?(rawValue: rawValue.checkout_strategy)
+                }
+
+                set {
+                    rawValue.checkout_strategy = newValue.rawValue | conflictResolution.rawValue |
+                        (allowConflicts ? GIT_CHECKOUT_ALLOW_CONFLICTS.rawValue : 0) |
+                        (removeUntracked ? GIT_CHECKOUT_REMOVE_UNTRACKED.rawValue : 0) |
+                        (removeIgnored ? GIT_CHECKOUT_REMOVE_IGNORED.rawValue : 0) |
+                        (updateOnly ? GIT_CHECKOUT_UPDATE_ONLY.rawValue : 0) |
+                        (updateIndex ? 0 : GIT_CHECKOUT_DONT_UPDATE_INDEX.rawValue) |
+                        (refreshIndex ? 0 : GIT_CHECKOUT_NO_REFRESH.rawValue) |
+                        (overwriteIgnored ? 0 : GIT_CHECKOUT_DONT_OVERWRITE_IGNORED.rawValue) |
+                        (removeExisting ? 0 : GIT_CHECKOUT_DONT_REMOVE_EXISTING.rawValue)
+                }
+            }
+
+            /// makes SAFE mode apply safe file updates even if there are conflicts (instead of cancelling the checkout).
+            public var allowConflicts: Bool {
+                get {
+                    rawValue.checkout_strategy & GIT_CHECKOUT_ALLOW_CONFLICTS.rawValue != 0
+                }
+
+                set {
+                    rawValue.checkout_strategy |= GIT_CHECKOUT_ALLOW_CONFLICTS.rawValue
+                }
+            }
+
+            public var conflictResolution: ConflictResolution? {
+                get {
+                    return ConflictResolution?(rawValue: rawValue.checkout_strategy)
+                }
+
+                set {
+                    rawValue.checkout_strategy = strategy.rawValue | newValue.rawValue |
+                        (allowConflicts ? GIT_CHECKOUT_ALLOW_CONFLICTS.rawValue : 0) |
+                        (removeUntracked ? GIT_CHECKOUT_REMOVE_UNTRACKED.rawValue : 0) |
+                        (removeIgnored ? GIT_CHECKOUT_REMOVE_IGNORED.rawValue : 0) |
+                        (updateOnly ? GIT_CHECKOUT_UPDATE_ONLY.rawValue : 0) |
+                        (updateIndex ? 0 : GIT_CHECKOUT_DONT_UPDATE_INDEX.rawValue) |
+                        (refreshIndex ? 0 : GIT_CHECKOUT_NO_REFRESH.rawValue) |
+                        (overwriteIgnored ? 0 : GIT_CHECKOUT_DONT_OVERWRITE_IGNORED.rawValue) |
+                        (removeExisting ? 0 : GIT_CHECKOUT_DONT_REMOVE_EXISTING.rawValue)
+                }
+            }
+
+            /// means remove untracked files (i.e. not in target, baseline, or index, and not ignored) from the working dir.
+            public var removeUntracked: Bool {
+                get {
+                    rawValue.checkout_strategy & GIT_CHECKOUT_REMOVE_UNTRACKED.rawValue != 0
+                }
+
+                set {
+                    if newValue {
+                        rawValue.checkout_strategy |= GIT_CHECKOUT_REMOVE_UNTRACKED.rawValue
+                    } else {
+                        rawValue.checkout_strategy &= ~GIT_CHECKOUT_REMOVE_UNTRACKED.rawValue
+                    }
+                }
+            }
+
+            ///  means remove ignored files (that are also untracked) from the working directory as well.
+            public var removeIgnored: Bool {
+                get {
+                    rawValue.checkout_strategy & GIT_CHECKOUT_REMOVE_IGNORED.rawValue != 0
+                }
+
+                set {
+                    if newValue {
+                        rawValue.checkout_strategy |= GIT_CHECKOUT_REMOVE_IGNORED.rawValue
+                    } else {
+                        rawValue.checkout_strategy &= ~GIT_CHECKOUT_REMOVE_IGNORED.rawValue
+                    }
+                }
+            }
+
+            /// means to only update the content of files that already exist. Files will not be created nor deleted. This just skips applying adds, deletes, and typechanges.
+            public var updateOnly: Bool {
+                get {
+                    rawValue.checkout_strategy & GIT_CHECKOUT_UPDATE_ONLY.rawValue != 0
+                }
+
+                set {
+                    if newValue {
+                        rawValue.checkout_strategy |= GIT_CHECKOUT_UPDATE_ONLY.rawValue
+                    } else {
+                        rawValue.checkout_strategy &= ~GIT_CHECKOUT_UPDATE_ONLY.rawValue
+                    }
+                }
+            }
+
+            /// !prevents checkout from writing the updated files' information to the index.
+            public var updateIndex: Bool {
+                get {
+                    rawValue.checkout_strategy & GIT_CHECKOUT_DONT_UPDATE_INDEX.rawValue == 0
+                }
+
+                set {
+                    if newValue {
+                        rawValue.checkout_strategy &= ~GIT_CHECKOUT_DONT_UPDATE_INDEX.rawValue
+                    } else {
+                        rawValue.checkout_strategy |= GIT_CHECKOUT_DONT_UPDATE_INDEX.rawValue
+                    }
+                }
+            }
+
+            /// checkout will reload the index and git attributes from disk before any operations.
+            /// Set to false to disable.
+            public var refreshIndex: Bool {
+                get {
+                    rawValue.checkout_strategy & GIT_CHECKOUT_NO_REFRESH.rawValue == 0
+                }
+
+                set {
+                    if newValue {
+                        rawValue.checkout_strategy &= ~GIT_CHECKOUT_NO_REFRESH.rawValue
+                    } else {
+                        rawValue.checkout_strategy |= GIT_CHECKOUT_NO_REFRESH.rawValue
+                    }
+                }
+            }
+
+            /// !prevents ignored files from being overwritten. Normally, files that are ignored in the working directory are not considered "precious" and may be overwritten if the checkout target contains that file.
+            public var overwriteIgnored: Bool {
+                get {
+                    rawValue.checkout_strategy & GIT_CHECKOUT_DONT_OVERWRITE_IGNORED.rawValue == 0
+                }
+
+                set {
+                    if newValue {
+                        rawValue.checkout_strategy &= ~GIT_CHECKOUT_DONT_OVERWRITE_IGNORED.rawValue
+                    } else {
+                        rawValue.checkout_strategy |= GIT_CHECKOUT_DONT_OVERWRITE_IGNORED.rawValue
+                    }
+                }
+            }
+
+            /// !prevents checkout from removing files or folders that fold to the same name on case insensitive filesystems. This can cause files to retain their existing names and write through existing symbolic links.
+            public var removeExisting: Bool {
+                get {
+                    rawValue.checkout_strategy & GIT_CHECKOUT_DONT_REMOVE_EXISTING.rawValue == 0
+                }
+
+                set {
+                    if newValue {
+                        rawValue.checkout_strategy &= ~GIT_CHECKOUT_ALLOW_CONFLICTS.rawValue
+                    } else {
+                        rawValue.checkout_strategy |= GIT_CHECKOUT_ALLOW_CONFLICTS.rawValue
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: -
+
+extension Optional /*: internal RawRepresentable */ where Wrapped == Repository.Checkout.Strategy {
+    init(rawValue: UInt32) {
+        if rawValue & GIT_CHECKOUT_FORCE.rawValue != 0 {
+            self = .force
+        } else if rawValue & GIT_CHECKOUT_SAFE.rawValue != 0 {
+            self = .safe
+        } else {
+            self = .none
+        }
+    }
+
+    var rawValue: UInt32 {
+        switch self {
+        case .force?:
+            return GIT_CHECKOUT_FORCE.rawValue
+        case .safe?:
+            return GIT_CHECKOUT_SAFE.rawValue
+        default:
+            return GIT_CHECKOUT_NONE.rawValue
+        }
+    }
+}
+
+extension Optional /*: internal RawRepresentable */ where Wrapped == Repository.Checkout.ConflictResolution {
+    init(rawValue: UInt32) {
+        if rawValue & GIT_CHECKOUT_SKIP_UNMERGED.rawValue != 0 {
+            self = .skipUnmerged
+        } else if rawValue & GIT_CHECKOUT_USE_OURS.rawValue != 0 {
+            self = .useOurs
+        } else if rawValue & GIT_CHECKOUT_USE_THEIRS.rawValue != 0 {
+            self = .useTheirs
+        } else {
+            self = .none
+        }
+    }
+
+    var rawValue: UInt32 {
+        switch self {
+        case .skipUnmerged?:
+            return GIT_CHECKOUT_SKIP_UNMERGED.rawValue
+        case .useOurs?:
+            return GIT_CHECKOUT_USE_OURS.rawValue
+        case .useTheirs?:
+            return GIT_CHECKOUT_USE_THEIRS.rawValue
+        default:
+            return GIT_CHECKOUT_NONE.rawValue
+        }
     }
 }
