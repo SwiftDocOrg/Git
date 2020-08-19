@@ -46,7 +46,7 @@ public class Signature /*: internal RawRepresentable*/ {
         let time = git_time_t(time.timeIntervalSince1970)
         try wrap { git_signature_new(&pointer, name, email, time, offset) }
         self.init(rawValue: pointer!.pointee)
-        managed = true
+//        managed = true
     }
 
     /// The name of the signer.

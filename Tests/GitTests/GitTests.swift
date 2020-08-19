@@ -4,7 +4,7 @@ import Clibgit2
 import Foundation
 
 final class GitTests: XCTestCase {
-    func testReadRepository() throws {
+    func testCloneAndReadRepository() throws {
         let remoteURL = URL(string: "https://github.com/SwiftDocOrg/StringLocationConverter.git")!
 
         let localURL = URL(fileURLWithPath: temporaryURL().path)
@@ -65,6 +65,33 @@ final class GitTests: XCTestCase {
             XCTAssertEqual(Array(revisions.compactMap { $0.message }), ["Initial commit\n"])
         }
     }
+
+    func testCreateAndCommitToRepository() throws {
+        let localURL = URL(fileURLWithPath: temporaryURL().path)
+        try FileManager.default.createDirectory(at: localURL, withIntermediateDirectories: true)
+        let repository = try Repository.create(at: localURL)
+
+        try """
+        Hello, world!
+        """.write(toFile: localURL.appendingPathComponent("hello.txt").path, atomically: true, encoding: .utf8)
+
+        try repository.add(paths: ["hello.txt"])
+
+        let signature = try Signature(name: "Mona Lisa Octocat", email: "mona@github.com")
+        let commit = try repository.commit(message: "Initial commit", author: signature, committer: signature)
+
+        XCTAssertEqual(repository.head?.commit, commit)
+        XCTAssertEqual(commit.message, "Initial commit")
+
+        let tree = commit.tree
+        XCTAssertNotNil(tree)
+        XCTAssertEqual(tree?.count, 1)
+        XCTAssertNotNil(tree?["hello.txt"])
+
+        let blob = tree?["hello.txt"]?.object as? Blob
+        XCTAssertNotNil(blob)
+        XCTAssertEqual(String(data: blob!.data, encoding: .utf8), "Hello, world!")
+    }
 }
 
 // MARK: -
@@ -73,35 +100,4 @@ fileprivate func temporaryURL() -> URL {
     let globallyUniqueString = ProcessInfo.processInfo.globallyUniqueString
     let path = "\(NSTemporaryDirectory())\(globallyUniqueString)"
     return URL(fileURLWithPath: path)
-}
-
-@discardableResult
-fileprivate func shell(_ command: String, with arguments: [String] = []) throws -> Data {
-    let task = Process()
-    let url = URL(fileURLWithPath: command)
-    if #available(OSX 10.13, *) {
-        task.executableURL = url
-    } else {
-        task.launchPath = url.path
-    }
-
-    task.arguments = arguments
-
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    if #available(OSX 10.13, *) {
-        try task.run()
-    } else {
-        task.launch()
-    }
-
-    task.waitUntilExit()
-
-    return pipe.fileHandleForReading.readDataToEndOfFile()
-}
-
-fileprivate func which(_ command: String) throws -> URL {
-    let data = try shell("/usr/bin/which", with: [command])
-    let string = String(data: data, encoding: .utf8)!.trimmingCharacters(in: .whitespacesAndNewlines)
-    return URL(fileURLWithPath: string)
 }
