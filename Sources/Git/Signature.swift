@@ -5,8 +5,7 @@ import Foundation
  An action signature (e.g. for committers, taggers, etc).
  */
 public class Signature /*: internal RawRepresentable*/ {
-    private var rawValue: git_signature
-
+    var rawValue: git_signature
     var managed: Bool = false
 
     init(rawValue: git_signature) {
@@ -16,6 +15,14 @@ public class Signature /*: internal RawRepresentable*/ {
     deinit {
         guard managed else { return }
         git_signature_free(&rawValue)
+    }
+
+    public static func `default`(for repository: Repository) throws -> Signature {
+        let pointer =  UnsafeMutablePointer<UnsafeMutablePointer<git_signature>?>.allocate(capacity: 1)
+        defer { pointer.deallocate() }
+        try wrap { git_signature_default(pointer, repository.pointer) }
+
+        return Signature(rawValue: pointer.pointee!.pointee)
     }
 
     // MARK: -

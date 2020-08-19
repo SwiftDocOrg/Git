@@ -5,7 +5,7 @@ import Foundation
 public final class Index {
     private(set) var pointer: OpaquePointer!
 
-    private var managed: Bool = false
+    var managed: Bool = false
 
     init(_ pointer: OpaquePointer) {
         self.pointer = pointer
@@ -17,6 +17,17 @@ public final class Index {
     }
 
     // MARK: -
+
+    /**
+     The index on-disk version.
+
+     Valid return values are 2, 3, or 4.
+     If 3 is returned, an index with version 2 may be written instead,
+     if the extension data in version 3 is not necessary.
+     */
+    public var version: Int {
+        return Int(git_index_version(pointer))
+    }
 
     /// The repository for the index.
     public var owner: Repository {
@@ -33,32 +44,21 @@ public final class Index {
      by reading from disk.
 
      - Important: If there are changes on disk,
-                  unwritten in-memory changes are discarded.
+     unwritten in-memory changes are discarded.
 
      - Parameters:
-        - force: If true, this performs a "hard" read
-                 that discards in-memory changes
-                 and always reloads the on-disk index data.
-                 If there is no on-disk version,
-                 the index will be cleared.
-                 If false,
-                 this does a "soft" read that reloads the index data from disk
-                 only if it has changed since the last time it was loaded.
-                 Purely in-memory index data will be untouched.
+     - force: If true, this performs a "hard" read
+     that discards in-memory changes
+     and always reloads the on-disk index data.
+     If there is no on-disk version,
+     the index will be cleared.
+     If false,
+     this does a "soft" read that reloads the index data from disk
+     only if it has changed since the last time it was loaded.
+     Purely in-memory index data will be untouched.
      */
     public func reload(force: Bool) throws {
         try wrap { git_index_read(pointer, force ? 1 : 0)}
-    }
-
-    /**
-     The index on-disk version.
-
-     Valid return values are 2, 3, or 4.
-     If 3 is returned, an index with version 2 may be written instead,
-     if the extension data in version 3 is not necessary.
-     */
-    public var version: Int {
-        return Int(git_index_version(pointer))
     }
 }
 

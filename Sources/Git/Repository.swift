@@ -88,7 +88,10 @@ public final class Repository {
             return nil
         }
 
-        return Index(pointer!)
+        let index = Index(pointer!)
+        index.managed = true
+
+        return index
     }
 
     /// The `HEAD` of the repository.
@@ -124,7 +127,7 @@ public final class Repository {
      Lookup an object by ID.
 
      - Parameters:
-     - id: The object ID.
+        - id: The object ID.
      - Throws: An error if no object exists for the
      - Returns: The corresponding object.
      */
@@ -171,6 +174,42 @@ public final class Repository {
         try wrap { git_graph_ahead_behind(&ahead, &behind, pointer, &localOID, &upstreamOID) }
         return (ahead, behind)
     }
+
+    public func add(path: String, force: Bool = false) throws {
+        try path.withCString { cString in
+            try wrap { git_index_add_bypath(index?.pointer, cString) }
+        }
+    }
+
+    // TODO: Add dry-run option
+    public func add(paths: [String], force: Bool = false, disableGlobExpansion: Bool = false) throws {
+        let options = (force ? GIT_INDEX_ADD_FORCE.rawValue : 0) |
+                        (disableGlobExpansion ? GIT_INDEX_ADD_DISABLE_PATHSPEC_MATCH.rawValue : 0)
+
+        try paths.withGitStringArray { array in
+            try withUnsafePointer(to: array) { paths in
+                try wrap { git_index_add_all(index?.pointer, paths, options, nil, nil) }
+            }
+        }
+
+        try wrap { git_index_write(index?.pointer) }
+    }
+
+    @discardableResult
+    public func commit(message: String, author: Signature? = nil, committer: Signature? = nil) throws -> Commit {
+        let tree = try lookup(try Object.ID { oid in
+            try wrap { git_index_write_tree(oid, index?.pointer) }
+        }) as Tree?
+
+        var author = (try author ?? Signature.default(for: self)).rawValue
+        var committer = (try committer ?? Signature.default(for: self)).rawValue
+        
+        var parents = [head?.commit].compactMap { $0?.pointer } as [OpaquePointer?]
+
+        return try lookup(try Object.ID { oid in
+            try wrap { git_commit_create(oid, pointer, "HEAD", &author, &committer, "UTF-8", message, tree?.pointer, parents.count, &parents) }
+        })!
+    }
 }
 
 // MARK: -
@@ -205,8 +244,8 @@ extension Repository {
 
         public var commit: Commit? {
             switch self {
-            case .attached:
-                return nil
+            case .attached(let branch):
+                return branch.commit
             case .detached(let commit):
                 return commit
             }

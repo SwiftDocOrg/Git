@@ -96,11 +96,21 @@ extension Object: Hashable {
 
 extension Object {
     /// An object ID.
-    public struct ID: Equatable, Hashable, CustomStringConvertible, ExpressibleByStringLiteral  /*: internal RawRepresentable*/ {
+    public struct ID: Equatable, Hashable, CustomStringConvertible, ExpressibleByStringLiteral /*: internal RawRepresentable*/ {
         let rawValue: git_oid
 
         init(rawValue: git_oid) {
             self.rawValue = rawValue
+        }
+
+        public init() {
+            self.init(rawValue: git_oid())
+        }
+
+        public init<T>(_ body: (UnsafeMutablePointer<git_oid>) throws -> T) rethrows {
+            var pointer = git_oid()
+            _ = try body(&pointer)
+            self.init(rawValue: pointer)
         }
 
         /// Creates an Object ID from a string.
