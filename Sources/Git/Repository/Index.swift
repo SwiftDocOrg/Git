@@ -153,6 +153,14 @@ extension Repository.Index {
             return try? index?.owner.lookup(id)
         }
 
+        public var isConflict: Bool {
+            git_index_entry_is_conflict(&rawValue) != 0
+        }
+
+        public var stage: Stage {
+            Stage(rawValue: git_index_stage_t(git_index_entry_stage(&rawValue)))
+        }
+
         // MARK: - Equatable
 
         public static func == (lhs: Repository.Index.Entry, rhs: Repository.Index.Entry) -> Bool {
