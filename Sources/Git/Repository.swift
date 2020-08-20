@@ -132,13 +132,32 @@ public final class Repository {
      - Returns: The corresponding object.
      */
     public func lookup<T: Object>(_ id: Object.ID) throws -> T? {
-        var result: OpaquePointer?
+        var result: OpaquePointer? = nil
         var oid = id.rawValue
         try wrap { git_object_lookup(&result, self.pointer, &oid, T.type) }
-        //        git_object_free(pointer)
+//        defer { git_object_free(pointer) }
         guard let pointer = result else { return nil }
 
-        return T(pointer) // FIXME
+        return T(pointer)
+    }
+
+    /**
+     Lookup a reference by name.
+
+     - Parameters:
+        - name: The reference name.
+     - Throws: An error if no object exists for the
+     - Returns: The corresponding object.
+     */
+    public func lookup<T: Reference>(_ name: String) throws -> T? {
+        var result: OpaquePointer?
+        try name.withCString { cString in
+            try wrap { git_reference_lookup(&result, self.pointer, cString) }
+        }
+//        defer { git_object_free(pointer) }
+        guard let pointer = result else { return nil }
+
+        return T(pointer)
     }
 
     /**
