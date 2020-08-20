@@ -135,25 +135,6 @@ public final class Repository {
     }
 
     /**
-     Lookup a reference by name.
-
-     - Parameters:
-        - name: The reference name.
-     - Throws: An error if no object exists for the
-     - Returns: The corresponding object.
-     */
-    public func lookup<T: Reference>(_ name: String) throws -> T? {
-        var result: OpaquePointer?
-        try name.withCString { cString in
-            try attempt { git_reference_lookup(&result, self.pointer, cString) }
-        }
-//        defer { git_object_free(pointer) }
-        guard let pointer = result else { return nil }
-
-        return T(pointer)
-    }
-
-    /**
      Returns the revision matching the provided specification.
 
      - Parameters:
@@ -225,5 +206,22 @@ public final class Repository {
         return try lookup(try Object.ID { oid in
             try attempt { git_commit_create(oid, pointer, "HEAD", &author, &committer, "UTF-8", message, tree?.pointer, parents.count, &parents) }
         })!
+    }
+
+    /// Creates a lightweight tag.
+    public func tag(name: String, target: Object, force: Bool = false) throws {
+        let name = try Reference.normalize(name: name)
+        let _ = try Object.ID { oid in
+            try attempt { git_tag_create_lightweight(oid, self.pointer, name, target.pointer, force ? 1 : 0) }
+        }
+    }
+
+    /// Creates an annotated tag.
+    public func tag(name: String, target: Object, tagger: Signature? = nil, message: String, force: Bool = false) throws {
+        let name = try Reference.normalize(name: name)
+        var signature = try (tagger ?? Signature.default(for: self)).rawValue
+        let _ = try Object.ID { oid in
+            try attempt { git_tag_create(oid, self.pointer, name, target.pointer, &signature, message, force ? 1 : 0) }
+        }
     }
 }
