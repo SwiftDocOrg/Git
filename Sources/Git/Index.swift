@@ -65,13 +65,68 @@ public final class Index {
 // MARK: -
 
 extension Index {
+    public enum Stage /* : internal RawRepresentable */ {
+        case normal
+        case ancestor
+        case ours
+        case theirs
+
+        init(rawValue: git_index_stage_t) {
+            switch rawValue {
+            case GIT_INDEX_STAGE_ANCESTOR:
+                self = .ancestor
+            case GIT_INDEX_STAGE_OURS:
+                self = .ours
+            case GIT_INDEX_STAGE_THEIRS:
+                self = .theirs
+            default:
+                self = .normal
+            }
+        }
+
+        var rawValue: git_index_stage_t {
+            switch self {
+            case .normal:
+                return GIT_INDEX_STAGE_NORMAL
+            case .ancestor:
+                return GIT_INDEX_STAGE_ANCESTOR
+            case .ours:
+                return GIT_INDEX_STAGE_OURS
+            case .theirs:
+                return GIT_INDEX_STAGE_THEIRS
+            }
+        }
+    }
+}
+
+// MARK: -
+
+extension Index {
     /// An entry in the index.
     public final class Entry: Equatable, Comparable, Hashable {
         weak var index: Index?
         private(set) var rawValue: git_index_entry
 
-        init(rawValue: git_index_entry) {
+        required init(rawValue: git_index_entry) {
             self.rawValue = rawValue
+        }
+
+        convenience init?(in index: Index, at n: Int) {
+            let pointer = git_index_get_byindex(index.pointer, n)
+            guard let rawValue = pointer?.pointee else { return nil }
+
+            self.init(rawValue: rawValue)
+            self.index = index
+        }
+
+        convenience init?(in index: Index, at path: String, stage: Stage) {
+            let pointer = path.withCString { cString in
+                git_index_get_bypath(index.pointer, cString, stage.rawValue.rawValue)
+            }
+            guard let rawValue = pointer?.pointee else { return nil }
+
+            self.init(rawValue: rawValue)
+            self.index = index
         }
 
         /// The file path of the index entry.
@@ -119,43 +174,22 @@ extension Index {
             hasher.combine(rawValue.uid)
         }
     }
+}
 
-    final class Entries: Sequence, IteratorProtocol {
-        private weak var index: Index?
-        private(set) var pointer: OpaquePointer!
+// MARK: - RandomAccessCollection
 
-        init(_ index: Index) throws {
-            try wrap { git_index_iterator_new(&pointer, index.pointer) }
-            self.index = index
-        }
+extension Index: RandomAccessCollection {
+    public typealias Element = Entry
 
-        deinit {
-            git_index_iterator_free(pointer)
-        }
+    public var startIndex: Int { 0 }
+    public var endIndex: Int { git_index_entrycount(pointer) }
 
-        var underestimatedCount: Int {
-            guard let index = index else { return 0 }
-            return git_index_entrycount(index.pointer)
-        }
-
-        // MARK: - Sequence
-
-        func next() -> Entry? {
-            do {
-                var pointer: UnsafePointer<git_index_entry>?
-                try wrap { git_index_iterator_next(&pointer, self.pointer) }
-                let entry = Entry(rawValue: pointer!.pointee)
-                entry.index = index
-                return entry
-            } catch {
-                return nil
-            }
-        }
+    public subscript(_ index: Int) -> Entry {
+        precondition(indices.contains(index))
+        return Entry(in: self, at: index)!
     }
 
-    /// Returns a sequence of entries in the index.
-    public var entries: AnySequence<Entry> {
-        guard let entries = try? Entries(self) else { return AnySequence(EmptyCollection()) }
-        return AnySequence(entries)
+    public subscript(_ path: String, stage: Stage = .normal) -> Entry? {
+        return Entry(in: self, at: path, stage: stage)
     }
 }
