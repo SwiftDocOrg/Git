@@ -59,7 +59,7 @@ extension Repository {
          Purely in-memory index data will be untouched.
          */
         public func reload(force: Bool) throws {
-            try wrap { git_index_read(pointer, force ? 1 : 0)}
+            try attempt { git_index_read(pointer, force ? 1 : 0)}
         }
     }
 }

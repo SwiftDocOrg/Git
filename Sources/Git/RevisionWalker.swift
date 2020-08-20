@@ -76,7 +76,7 @@ extension Repository {
         private(set) var pointer: OpaquePointer!
 
         init(_ repository: Repository) throws {
-            try wrap { git_revwalk_new(&pointer, repository.pointer) }
+            try attempt { git_revwalk_new(&pointer, repository.pointer) }
         }
 
         deinit {
@@ -90,72 +90,68 @@ extension Repository {
         // MARK: - Sequence
 
         func next() -> Commit? {
-            do {
-                let pointer = UnsafeMutablePointer<git_oid>.allocate(capacity: 1)
-                defer { pointer.deallocate() }
-                try wrap { git_revwalk_next(pointer, self.pointer) }
-                let id = Object.ID(rawValue: pointer.pointee)
-                return try repository.lookup(id)
-            } catch {
-                return nil
-            }
+            let pointer = UnsafeMutablePointer<git_oid>.allocate(capacity: 1)
+            defer { pointer.deallocate() }
+            guard case .success = result(of: { git_revwalk_next(pointer, self.pointer) }) else { return nil }
+            let id = Object.ID(rawValue: pointer.pointee)
+            return try? repository.lookup(id)
         }
 
         // MARK: - RevisionWalker
 
         func pushHead() throws {
-            try wrap { git_revwalk_push_head(pointer) }
+            try attempt { git_revwalk_push_head(pointer) }
         }
 
         func pushGlob(_ glob: String) throws {
             try glob.withCString { cString in
-                try wrap { git_revwalk_push_glob(pointer, cString) }
+                try attempt { git_revwalk_push_glob(pointer, cString) }
             }
         }
 
         func pushRange(_ range: String) throws {
             try range.withCString { cString in
-                try wrap { git_revwalk_push_range(pointer, cString) }
+                try attempt { git_revwalk_push_range(pointer, cString) }
             }
         }
 
         func pushReference(named name: String) throws {
             try name.withCString { cString in
-                try wrap { git_revwalk_push_ref(pointer, cString) }
+                try attempt { git_revwalk_push_ref(pointer, cString) }
             }
         }
 
         func hideGlob(_ glob: String) throws {
             try glob.withCString { cString in
-                try wrap { git_revwalk_hide_glob(pointer, cString) }
+                try attempt { git_revwalk_hide_glob(pointer, cString) }
             }
         }
 
         func hideHead() throws {
-            try wrap { git_revwalk_hide_head(pointer) }
+            try attempt { git_revwalk_hide_head(pointer) }
         }
 
         func hideCommit(with id: Commit.ID) throws {
             var oid = id.rawValue
-            try wrap { git_revwalk_hide(pointer, &oid) }
+            try attempt { git_revwalk_hide(pointer, &oid) }
         }
 
         func hideReference(named name: String) throws {
             try name.withCString { cString in
-                try wrap { git_revwalk_hide_ref(pointer, cString) }
+                try attempt { git_revwalk_hide_ref(pointer, cString) }
             }
         }
 
         func sort(with options: RevisionSortingOptions) throws {
-            try wrap { git_revwalk_sorting(pointer, options.rawValue) }
+            try attempt { git_revwalk_sorting(pointer, options.rawValue) }
         }
 
         func simplifyFirstParent() throws {
-            try wrap { git_revwalk_simplify_first_parent(pointer) }
+            try attempt { git_revwalk_simplify_first_parent(pointer) }
         }
 
         func reset() throws {
-            try wrap { git_revwalk_reset(pointer) }
+            try attempt { git_revwalk_reset(pointer) }
         }
     }
 

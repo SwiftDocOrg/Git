@@ -20,7 +20,7 @@ public class Signature /*: internal RawRepresentable*/ {
     public static func `default`(for repository: Repository) throws -> Signature {
         let pointer =  UnsafeMutablePointer<UnsafeMutablePointer<git_signature>?>.allocate(capacity: 1)
         defer { pointer.deallocate() }
-        try wrap { git_signature_default(pointer, repository.pointer) }
+        try attempt { git_signature_default(pointer, repository.pointer) }
 
         return Signature(rawValue: pointer.pointee!.pointee)
     }
@@ -44,7 +44,7 @@ public class Signature /*: internal RawRepresentable*/ {
         var pointer: UnsafeMutablePointer<git_signature>?
         let offset = Int32(timeZone.secondsFromGMT(for: time) / 60)
         let time = git_time_t(time.timeIntervalSince1970)
-        try wrap { git_signature_new(&pointer, name, email, time, offset) }
+        try attempt { git_signature_new(&pointer, name, email, time, offset) }
         self.init(rawValue: pointer!.pointee)
 //        managed = true
     }

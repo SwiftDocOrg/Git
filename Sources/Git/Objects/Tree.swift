@@ -17,13 +17,10 @@ public final class Tree: Object {
 
         /// The object corresponding to the tree entry.
         public var object: Object? {
-            guard let tree = tree else { return nil }
             var pointer: OpaquePointer?
-            do {
-                try wrap { git_tree_entry_to_object(&pointer, tree.owner.pointer, self.pointer)}
-            } catch {
-                return nil
-            }
+            guard let tree = tree,
+                  case .success = result(of: { git_tree_entry_to_object(&pointer, tree.owner.pointer, self.pointer) })
+            else { return nil }
 
             return Object.type(of: git_object_type(pointer!))?.init(pointer!)
         }

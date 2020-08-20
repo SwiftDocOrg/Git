@@ -63,15 +63,12 @@ public class Object {
 
     /// The note attached to the object, if any.
     public var note: Note? {
-        do {
-            var pointer: OpaquePointer?
-            let owner = git_commit_owner(self.pointer)
-            var oid = id.rawValue
-            try wrap { git_note_read(&pointer, owner, nil, &oid) }
-            return Note(pointer!)
-        } catch {
-            return nil
-        }
+        var pointer: OpaquePointer?
+        let owner = git_commit_owner(self.pointer)
+        var oid = id.rawValue
+        guard case .success = result(of: { git_note_read(&pointer, owner, nil, &oid) }) else { return nil }
+
+        return Note(pointer!)
     }
 
     @discardableResult
@@ -84,7 +81,7 @@ public class Object {
         // TODO determine parent Note commit
 
         var objectOID = id.rawValue
-        try wrap { git_note_create(nil, repository.pointer, nil, &author, &committer, &objectOID, note, force ? 1 : 0) }
+        try attempt { git_note_create(nil, repository.pointer, nil, &author, &committer, &objectOID, note, force ? 1 : 0) }
 
         return self.note
     }
@@ -134,7 +131,7 @@ extension Object {
             precondition(string.lengthOfBytes(using: .ascii) <= 40)
             let pointer = UnsafeMutablePointer<git_oid>.allocate(capacity: 1)
             defer { pointer.deallocate() }
-            try wrap { git_oid_fromstr(pointer, string) }
+            try attempt { git_oid_fromstr(pointer, string) }
             rawValue = pointer.pointee
         }
 
@@ -143,7 +140,7 @@ extension Object {
             precondition(bytes.count <= 40)
             let pointer = UnsafeMutablePointer<git_oid>.allocate(capacity: 1)
             defer { pointer.deallocate() }
-            try wrap { git_oid_fromraw(pointer, bytes) }
+            try attempt { git_oid_fromraw(pointer, bytes) }
             rawValue = pointer.pointee
         }
 

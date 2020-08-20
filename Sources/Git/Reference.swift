@@ -73,7 +73,7 @@ public class Reference/*: Identifiable */ {
         let length = name.underestimatedCount * 2
         let string = UnsafeMutablePointer<Int8>.allocate(capacity: length)
         try name.withCString { cString in
-            try wrap { git_reference_normalize_name(string, length, cString, format.rawValue.rawValue) }
+            try attempt { git_reference_normalize_name(string, length, cString, format.rawValue.rawValue) }
         }
         return String(bytesNoCopy: string, length: length, encoding: .ascii, freeWhenDone: true)!
     }
@@ -92,14 +92,10 @@ public class Reference/*: Identifiable */ {
     var target: Object.ID? {
         switch git_reference_type(pointer) {
         case GIT_REFERENCE_SYMBOLIC:
-            do {
-                var resolved: OpaquePointer?
-                try wrap { git_reference_resolve(&resolved, pointer) }
-                defer { git_reference_free(resolved) }
-                return Object.ID(rawValue: git_reference_target(resolved).pointee)
-            } catch {
-                return nil
-            }
+            var resolved: OpaquePointer?
+            guard case .success = result(of: { git_reference_resolve(&resolved, pointer) }) else { return nil }
+            defer { git_reference_free(resolved) }
+            return Object.ID(rawValue: git_reference_target(resolved).pointee)
         default:
             return Object.ID(rawValue: git_reference_target(pointer).pointee)
         }

@@ -27,11 +27,7 @@ public final class Tag: Reference {
         var pointer: OpaquePointer?
         let owner = git_reference_owner(pointer)
         var oid = git_reference_target(pointer).pointee
-        do {
-            try wrap { git_object_lookup(&pointer, owner, &oid, GIT_OBJECT_TAG) }
-        } catch {
-            return nil
-        }
+        guard case .success = result(of: { git_object_lookup(&pointer, owner, &oid, GIT_OBJECT_TAG) }) else { return nil }
 
         return Annotation(pointer!)
     }

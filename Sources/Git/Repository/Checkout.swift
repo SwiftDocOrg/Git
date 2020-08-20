@@ -22,7 +22,7 @@ extension Repository {
             init() throws {
                 let pointer = UnsafeMutablePointer<git_checkout_options>.allocate(capacity: 1)
                 defer { pointer.deallocate() }
-                try wrap { git_checkout_options_init(pointer, numericCast(GIT_CHECKOUT_OPTIONS_VERSION)) }
+                try attempt { git_checkout_options_init(pointer, numericCast(GIT_CHECKOUT_OPTIONS_VERSION)) }
                 rawValue = pointer.pointee
             }
 

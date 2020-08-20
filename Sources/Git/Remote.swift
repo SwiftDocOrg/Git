@@ -52,7 +52,7 @@ extension Remote {
             init() throws {
                 let pointer = UnsafeMutablePointer<git_fetch_options>.allocate(capacity: 1)
                 defer { pointer.deallocate() }
-                try wrap { git_fetch_options_init(pointer, numericCast(GIT_FETCH_OPTIONS_VERSION)) }
+                try attempt { git_fetch_options_init(pointer, numericCast(GIT_FETCH_OPTIONS_VERSION)) }
                 rawValue = pointer.pointee
             }
 

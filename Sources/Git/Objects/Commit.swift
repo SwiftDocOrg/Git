@@ -52,7 +52,7 @@ public final class Commit: Object {
     public func distance(to upstream: Commit) throws -> (ahead: Int, behind: Int) {
         var ahead: Int = 0, behind: Int = 0
         var localOID = self.id.rawValue, upstreamOID = upstream.id.rawValue
-        try wrap { git_graph_ahead_behind(&ahead, &behind, pointer, &localOID, &upstreamOID) }
+        try attempt { git_graph_ahead_behind(&ahead, &behind, pointer, &localOID, &upstreamOID) }
         return (ahead, behind)
     }
 

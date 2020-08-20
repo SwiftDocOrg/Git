@@ -5,7 +5,7 @@ public enum Message {
         var buffer = git_buf()
         defer { git_buf_free(&buffer) }
 
-        try wrap { git_message_prettify(&buffer, message, stripComments ? 1 : 0, numericCast(commentDelimiter.asciiValue ?? 35)) }
+        try attempt { git_message_prettify(&buffer, message, stripComments ? 1 : 0, numericCast(commentDelimiter.asciiValue ?? 35)) }
 
         return String(cString: buffer.ptr)
     }

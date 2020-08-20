@@ -11,13 +11,11 @@ public final class Branch: Reference {
     /// The short name of the branch.
     public var shortName: String {
         var pointer: UnsafePointer<Int8>?
-        do {
-            try wrap { git_branch_name(&pointer, self.pointer) }
-        } catch {
-            return name
-        }
+        guard case .success = result(of: { git_branch_name(&pointer, self.pointer) }),
+              let string = String(validatingUTF8: pointer!)
+        else { return name }
 
-        return String(validatingUTF8: pointer!) ?? name
+        return string
     }
 
     /// Whether `HEAD` points to the branch.

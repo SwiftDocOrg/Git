@@ -27,10 +27,19 @@ public struct Error: Swift.Error {
 
 // MARK: -
 
-func wrap(_ fn: () -> Int32) throws {
+func attempt(throwing function: () -> Int32) throws {
     _ = initializer // FIXME
-    let result = fn()
+    let result = function()
     guard result == 0 else {
         throw Error(code: result)
+    }
+}
+
+func result(of function: () -> Int32) -> Result<Void, Swift.Error> {
+    do {
+        try attempt(throwing: function)
+        return .success(())
+    } catch {
+        return .failure(error)
     }
 }

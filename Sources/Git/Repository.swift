@@ -18,13 +18,13 @@ public final class Repository {
 
     public class func open(at url: URL) throws -> Repository {
         var pointer: OpaquePointer?
-        try wrap { git_repository_open(&pointer, url.path) }
+        try attempt { git_repository_open(&pointer, url.path) }
         return Repository(pointer!)
     }
 
     public class func create(at url: URL, bare: Bool = false) throws -> Repository {
         var pointer: OpaquePointer?
-        try wrap { git_repository_init(&pointer, url.path, bare ? 1 : 0) }
+        try attempt { git_repository_init(&pointer, url.path, bare ? 1 : 0) }
         return Repository(pointer!)
     }
 
@@ -33,7 +33,7 @@ public final class Repository {
         defer { git_buf_free(&buffer) }
 
         try url.withUnsafeFileSystemRepresentation { path in
-            try wrap { git_repository_discover(&buffer, path, acrossFileSystems ? 1 : 0, ceilingDirectories.joined(separator: pathListSeparator).cString(using: .utf8)) }
+            try attempt { git_repository_discover(&buffer, path, acrossFileSystems ? 1 : 0, ceilingDirectories.joined(separator: pathListSeparator).cString(using: .utf8)) }
         }
 
         let discoveredURL = URL(fileURLWithPath: String(cString: buffer.ptr))
@@ -50,7 +50,7 @@ public final class Repository {
         var options = configuration.rawValue
         let remoteURLString = remoteURL.isFileURL ? remoteURL.path : remoteURL.absoluteString
         try localURL.withUnsafeFileSystemRepresentation { path in
-            try wrap { git_clone(&pointer, remoteURLString, path, &options) }
+            try attempt { git_clone(&pointer, remoteURLString, path, &options) }
         }
 
         return try Repository.open(at: localURL)
@@ -82,12 +82,8 @@ public final class Repository {
     /// The repository index, if any.
     public var index: Index? {
         var pointer: OpaquePointer?
-        do {
-            try wrap { git_repository_index(&pointer, self.pointer) }
-        } catch {
-            return nil
-        }
-
+        guard case .success = result(of: { git_repository_index(&pointer, self.pointer) }),
+              pointer != nil else { return nil }
         let index = Index(pointer!)
         index.managed = true
 
@@ -97,22 +93,19 @@ public final class Repository {
     /// The `HEAD` of the repository.
     public var head: Head? {
         var pointer: OpaquePointer?
-        do {
-            try wrap { git_repository_head(&pointer, self.pointer) }
-            if git_repository_head_detached(self.pointer) != 0 {
-                return .detached(Commit(pointer!))
-            } else {
-                return .attached(Branch(pointer!))
-            }
-        } catch {
-            return nil
+        guard case .success = result(of: { git_repository_head(&pointer, self.pointer) }) else { return nil }
+
+        if git_repository_head_detached(self.pointer) != 0 {
+            return .detached(Commit(pointer!))
+        } else {
+            return .attached(Branch(pointer!))
         }
     }
 
     /// Returns a branch by name.
     public func branch(named name: String) throws -> Branch? {
         var pointer: OpaquePointer?
-        try wrap { git_reference_lookup(&pointer, self.pointer, name) }
+        try attempt { git_reference_lookup(&pointer, self.pointer, name) }
 
         guard git_reference_is_branch(pointer) != 0 ||
                 git_reference_is_remote(pointer) != 0
@@ -134,7 +127,7 @@ public final class Repository {
     public func lookup<T: Object>(_ id: Object.ID) throws -> T? {
         var result: OpaquePointer? = nil
         var oid = id.rawValue
-        try wrap { git_object_lookup(&result, self.pointer, &oid, T.type) }
+        try attempt { git_object_lookup(&result, self.pointer, &oid, T.type) }
 //        defer { git_object_free(pointer) }
         guard let pointer = result else { return nil }
 
@@ -152,7 +145,7 @@ public final class Repository {
     public func lookup<T: Reference>(_ name: String) throws -> T? {
         var result: OpaquePointer?
         try name.withCString { cString in
-            try wrap { git_reference_lookup(&result, self.pointer, cString) }
+            try attempt { git_reference_lookup(&result, self.pointer, cString) }
         }
 //        defer { git_object_free(pointer) }
         guard let pointer = result else { return nil }
@@ -173,7 +166,7 @@ public final class Repository {
         var referencePointer: OpaquePointer?
 
         try specification.withCString { string in
-            try wrap { git_revparse_ext(&commitPointer, &referencePointer, pointer, string) }
+            try attempt { git_revparse_ext(&commitPointer, &referencePointer, pointer, string) }
         }
 
         return (commitPointer.map(Commit.init), referencePointer.map(Reference.init))
@@ -190,13 +183,13 @@ public final class Repository {
     public func distance(from local: Commit, to upstream: Commit) throws -> (ahead: Int, behind: Int) {
         var ahead: Int = 0, behind: Int = 0
         var localOID = local.id.rawValue, upstreamOID = upstream.id.rawValue
-        try wrap { git_graph_ahead_behind(&ahead, &behind, pointer, &localOID, &upstreamOID) }
+        try attempt { git_graph_ahead_behind(&ahead, &behind, pointer, &localOID, &upstreamOID) }
         return (ahead, behind)
     }
 
     public func add(path: String, force: Bool = false) throws {
         try path.withCString { cString in
-            try wrap { git_index_add_bypath(index?.pointer, cString) }
+            try attempt { git_index_add_bypath(index?.pointer, cString) }
         }
     }
 
@@ -207,17 +200,17 @@ public final class Repository {
 
         try paths.withGitStringArray { array in
             try withUnsafePointer(to: array) { paths in
-                try wrap { git_index_add_all(index?.pointer, paths, options, nil, nil) }
+                try attempt { git_index_add_all(index?.pointer, paths, options, nil, nil) }
             }
         }
 
-        try wrap { git_index_write(index?.pointer) }
+        try attempt { git_index_write(index?.pointer) }
     }
 
     @discardableResult
     public func commit(message: String, author: Signature? = nil, committer: Signature? = nil) throws -> Commit {
         let tree = try lookup(try Object.ID { oid in
-            try wrap { git_index_write_tree(oid, index?.pointer) }
+            try attempt { git_index_write_tree(oid, index?.pointer) }
         }) as Tree?
 
         var author = (try author ?? Signature.default(for: self)).rawValue
@@ -226,7 +219,7 @@ public final class Repository {
         var parents = [head?.commit].compactMap { $0?.pointer } as [OpaquePointer?]
 
         return try lookup(try Object.ID { oid in
-            try wrap { git_commit_create(oid, pointer, "HEAD", &author, &committer, "UTF-8", message, tree?.pointer, parents.count, &parents) }
+            try attempt { git_commit_create(oid, pointer, "HEAD", &author, &committer, "UTF-8", message, tree?.pointer, parents.count, &parents) }
         })!
     }
 }
