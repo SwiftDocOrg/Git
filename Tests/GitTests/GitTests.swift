@@ -97,6 +97,9 @@ final class GitTests: XCTestCase {
         let blob = tree?["hello.txt"]?.object as? Blob
         XCTAssertNotNil(blob)
         XCTAssertEqual(String(data: blob!.data, encoding: .utf8), "Hello, world!")
+
+        let note = try commit.add(note: #"{"test": true }"#)
+        XCTAssertNotNil(note?.message, #"{"test": true }"#)
     }
 }
 
