@@ -4,6 +4,11 @@ import Clibgit2
 public final class Tree: Object {
     class override var type: git_object_t { return GIT_OBJECT_TREE }
 
+    /// The repository containing the tree.
+    public override var owner: Repository {
+        return Repository(git_tree_owner(pointer))
+    }
+
     /// A tree entry.
     public final class Entry {
         weak var tree: Tree?
