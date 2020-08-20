@@ -11,7 +11,7 @@ import struct Foundation.Data
  - SeeAlso: `Tree`
  - SeeAlso: `Tag.Revision`
  */
-public class Object: Identifiable {
+public class Object {
     class var type: git_object_t { return GIT_OBJECT_ANY }
 
     private(set) var pointer: OpaquePointer!
