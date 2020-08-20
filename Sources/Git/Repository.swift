@@ -207,8 +207,6 @@ public final class Repository {
                 }
             }
         }
-
-        try attempt { git_index_write(index?.pointer) }
     }
 
     @discardableResult
