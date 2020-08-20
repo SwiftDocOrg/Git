@@ -142,9 +142,3 @@ extension Optional /*: internal RawRepresentable */ where Wrapped == Remote.Fetc
         }
     }
 }
-
-fileprivate extension Array where Element == String {
-    init(_ git_strarray: git_strarray) {
-        self.init((0..<git_strarray.count).map { String(validatingUTF8: git_strarray.strings[$0]!)! })
-    }
-}

@@ -210,7 +210,6 @@ public final class Repository {
 
     /// Creates a lightweight tag.
     public func tag(name: String, target: Object, force: Bool = false) throws {
-        let name = try Reference.normalize(name: name)
         let _ = try Object.ID { oid in
             try attempt { git_tag_create_lightweight(oid, self.pointer, name, target.pointer, force ? 1 : 0) }
         }
@@ -218,10 +217,24 @@ public final class Repository {
 
     /// Creates an annotated tag.
     public func tag(name: String, target: Object, tagger: Signature? = nil, message: String, force: Bool = false) throws {
-        let name = try Reference.normalize(name: name)
         var signature = try (tagger ?? Signature.default(for: self)).rawValue
         let _ = try Object.ID { oid in
             try attempt { git_tag_create(oid, self.pointer, name, target.pointer, &signature, message, force ? 1 : 0) }
         }
+    }
+
+    public func tagNames() throws -> [String] {
+        let pointer = UnsafeMutablePointer<git_strarray>.allocate(capacity: 1)
+        defer { pointer.deallocate() }
+        try attempt { git_tag_list(pointer, self.pointer) }
+        return Array(pointer.pointee)
+    }
+
+    public func tagNames(matching pattern: String) throws -> [String] {
+        let pointer = UnsafeMutablePointer<git_strarray>.allocate(capacity: 1)
+        defer { pointer.deallocate() }
+//        let pattern = try Reference.normalize(name: pattern, format: .refspecPattern)
+        try attempt { git_tag_list_match(pointer, pattern, self.pointer) }
+        return Array(pointer.pointee)
     }
 }

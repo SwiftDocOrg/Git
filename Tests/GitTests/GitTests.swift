@@ -100,6 +100,11 @@ final class GitTests: XCTestCase {
 
         let note = try commit.add(note: #"{"test": true }"#, author: signature, committer: signature)
         XCTAssertNotNil(note?.message, #"{"test": true }"#)
+
+        try repository.tag(name: "0.0.1", target: commit)
+        let names = try repository.tagNames()
+        XCTAssertFalse(names.isEmpty)
+        XCTAssert(names.contains("0.0.1"))
     }
 }
 
