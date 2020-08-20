@@ -215,9 +215,9 @@ public final class Repository {
             try attempt { git_index_write_tree(oid, index?.pointer) }
         }) as Tree?
 
+        var committer = (try committer ?? author ?? Signature.default(for: self)).rawValue
         var author = (try author ?? Signature.default(for: self)).rawValue
-        var committer = (try committer ?? Signature.default(for: self)).rawValue
-        
+
         var parents = [head?.commit].compactMap { $0?.pointer } as [OpaquePointer?]
 
         return try lookup(try Object.ID { oid in

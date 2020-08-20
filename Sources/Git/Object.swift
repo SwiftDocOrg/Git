@@ -75,8 +75,8 @@ public class Object {
     public func add(note: String, author: Signature? = nil, committer: Signature? = nil, force: Bool = false) throws -> Note? {
         let repository = owner
 
+        var committer = (try committer ?? author ?? Signature.default(for: repository)).rawValue
         var author = (try author ?? Signature.default(for: repository)).rawValue
-        var committer = (try committer ?? Signature.default(for: repository)).rawValue
 
         // TODO determine parent Note commit
 
