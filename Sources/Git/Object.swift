@@ -25,8 +25,8 @@ public class Object {
 
     required init(_ pointer: OpaquePointer) {
         self.pointer = pointer
-        assert(Swift.type(of: self) != Object.self)
-        assert(git_object_type(pointer) == Swift.type(of: self).type)
+        assert(Swift.type(of: self) == Object.self ||
+                git_object_type(pointer) == Swift.type(of: self).type)
     }
 
     deinit {
