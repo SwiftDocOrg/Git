@@ -80,7 +80,7 @@ public final class Repository {
     }
 
     /// The repository index, if any.
-    public var index: Index? {
+    public lazy var index: Index? = {
         var pointer: OpaquePointer?
         guard case .success = result(of: { git_repository_index(&pointer, self.pointer) }),
               pointer != nil else { return nil }
@@ -88,7 +88,7 @@ public final class Repository {
         index.managed = true
 
         return index
-    }
+    }()
 
     /// The `HEAD` of the repository.
     public var head: Head? {
