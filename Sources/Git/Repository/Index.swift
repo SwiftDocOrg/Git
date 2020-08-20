@@ -180,6 +180,46 @@ extension Repository.Index {
             hasher.combine(rawValue.uid)
         }
     }
+
+    final class Entries: Sequence, IteratorProtocol {
+        private weak var index: Repository.Index?
+        private(set) var pointer: OpaquePointer!
+
+        init(_ index: Repository.Index) throws {
+            try attempt { git_index_iterator_new(&pointer, index.pointer) }
+            self.index = index
+        }
+
+        deinit {
+            git_index_iterator_free(pointer)
+        }
+
+        var underestimatedCount: Int {
+            guard let index = index else { return 0 }
+            return git_index_entrycount(index.pointer)
+        }
+
+        // MARK: - Sequence
+
+        func next() -> Entry? {
+            do {
+                var pointer: UnsafePointer<git_index_entry>?
+                try attempt { git_index_iterator_next(&pointer, self.pointer) }
+                let entry = Entry(rawValue: pointer!.pointee)
+                entry.index = index
+                return entry
+            } catch {
+                return nil
+            }
+        }
+    }
+
+
+    /// Returns a sequence of entries in the index.
+    public var entries: AnySequence<Entry> {
+        guard let entries = try? Entries(self) else { return AnySequence(EmptyCollection()) }
+        return AnySequence(entries)
+    }
 }
 
 // MARK: - RandomAccessCollection
