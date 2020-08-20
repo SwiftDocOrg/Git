@@ -73,7 +73,23 @@ public class Object {
             return nil
         }
     }
+
+    @discardableResult
+    public func add(note: String, author: Signature? = nil, committer: Signature? = nil, force: Bool = false) throws -> Note? {
+        let repository = owner
+
+        var author = (try author ?? Signature.default(for: repository)).rawValue
+        var committer = (try committer ?? Signature.default(for: repository)).rawValue
+
+        // TODO determine parent Note commit
+
+        var objectOID = id.rawValue
+        try wrap { git_note_create(nil, repository.pointer, nil, &author, &committer, &objectOID, note, force ? 1 : 0) }
+
+        return self.note
+    }
 }
+
 
 // MARK: - Equatable
 
