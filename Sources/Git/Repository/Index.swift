@@ -1,70 +1,70 @@
 import Clibgit2
 import Foundation
 
-/// A repository index.
-public final class Index {
-    private(set) var pointer: OpaquePointer!
+extension Repository {
+    /// A repository index.
+    public final class Index {
+        private(set) var pointer: OpaquePointer!
 
-    var managed: Bool = false
+        var managed: Bool = false
 
-    init(_ pointer: OpaquePointer) {
-        self.pointer = pointer
-    }
+        init(_ pointer: OpaquePointer) {
+            self.pointer = pointer
+        }
 
-    deinit {
-        guard managed else { return }
-        git_index_free(pointer)
-    }
+        deinit {
+            guard managed else { return }
+            git_index_free(pointer)
+        }
 
-    // MARK: -
+        // MARK: -
 
-    /**
-     The index on-disk version.
+        /**
+         The index on-disk version.
 
-     Valid return values are 2, 3, or 4.
-     If 3 is returned, an index with version 2 may be written instead,
-     if the extension data in version 3 is not necessary.
-     */
-    public var version: Int {
-        return Int(git_index_version(pointer))
-    }
+         Valid return values are 2, 3, or 4.
+         If 3 is returned, an index with version 2 may be written instead,
+         if the extension data in version 3 is not necessary.
+         */
+        public var version: Int {
+            return Int(git_index_version(pointer))
+        }
 
-    /// The repository for the index.
-    public var owner: Repository {
-        return Repository(git_index_owner(pointer))
-    }
+        /// The repository for the index.
+        public var owner: Repository {
+            return Repository(git_index_owner(pointer))
+        }
 
-    /// The file path to the repository index file.
-    public var path: String! {
-        return String(validatingUTF8: git_index_path(pointer))
-    }
+        /// The file path to the repository index file.
+        public var path: String! {
+            return String(validatingUTF8: git_index_path(pointer))
+        }
 
-    /**
-     Update the contents of an existing index object in memory
-     by reading from disk.
+        /**
+         Update the contents of an existing index object in memory
+         by reading from disk.
 
-     - Important: If there are changes on disk,
-     unwritten in-memory changes are discarded.
+         - Important: If there are changes on disk,
+         unwritten in-memory changes are discarded.
 
-     - Parameters:
-     - force: If true, this performs a "hard" read
-     that discards in-memory changes
-     and always reloads the on-disk index data.
-     If there is no on-disk version,
-     the index will be cleared.
-     If false,
-     this does a "soft" read that reloads the index data from disk
-     only if it has changed since the last time it was loaded.
-     Purely in-memory index data will be untouched.
-     */
-    public func reload(force: Bool) throws {
-        try wrap { git_index_read(pointer, force ? 1 : 0)}
+         - Parameters:
+         - force: If true, this performs a "hard" read
+         that discards in-memory changes
+         and always reloads the on-disk index data.
+         If there is no on-disk version,
+         the index will be cleared.
+         If false,
+         this does a "soft" read that reloads the index data from disk
+         only if it has changed since the last time it was loaded.
+         Purely in-memory index data will be untouched.
+         */
+        public func reload(force: Bool) throws {
+            try wrap { git_index_read(pointer, force ? 1 : 0)}
+        }
     }
 }
 
-// MARK: -
-
-extension Index {
+extension Repository.Index {
     public enum Stage /* : internal RawRepresentable */ {
         case normal
         case ancestor
@@ -99,19 +99,17 @@ extension Index {
     }
 }
 
-// MARK: -
-
-extension Index {
+extension Repository.Index {
     /// An entry in the index.
     public final class Entry: Equatable, Comparable, Hashable {
-        weak var index: Index?
+        weak var index: Repository.Index?
         private(set) var rawValue: git_index_entry
 
         required init(rawValue: git_index_entry) {
             self.rawValue = rawValue
         }
 
-        convenience init?(in index: Index, at n: Int) {
+        convenience init?(in index: Repository.Index, at n: Int) {
             let pointer = git_index_get_byindex(index.pointer, n)
             guard let rawValue = pointer?.pointee else { return nil }
 
@@ -119,7 +117,7 @@ extension Index {
             self.index = index
         }
 
-        convenience init?(in index: Index, at path: String, stage: Stage) {
+        convenience init?(in index: Repository.Index, at path: String, stage: Stage) {
             let pointer = path.withCString { cString in
                 git_index_get_bypath(index.pointer, cString, stage.rawValue.rawValue)
             }
@@ -157,14 +155,14 @@ extension Index {
 
         // MARK: - Equatable
 
-        public static func == (lhs: Index.Entry, rhs: Index.Entry) -> Bool {
+        public static func == (lhs: Repository.Index.Entry, rhs: Repository.Index.Entry) -> Bool {
             var loid = lhs.rawValue.id, roid = rhs.rawValue.id
             return git_oid_cmp(&loid, &roid) == 0
         }
 
         // MARK: - Comparable
 
-        public static func < (lhs: Index.Entry, rhs: Index.Entry) -> Bool {
+        public static func < (lhs: Repository.Index.Entry, rhs: Repository.Index.Entry) -> Bool {
             return lhs.path < rhs.path
         }
 
@@ -178,7 +176,7 @@ extension Index {
 
 // MARK: - RandomAccessCollection
 
-extension Index: RandomAccessCollection {
+extension Repository.Index: RandomAccessCollection {
     public typealias Element = Entry
 
     public var startIndex: Int { 0 }
