@@ -4,6 +4,11 @@ import Clibgit2
 public final class Commit: Object {
     class override var type: git_object_t { return GIT_OBJECT_COMMIT }
 
+    /// The repository containing the commit.
+    public override var owner: Repository {
+        return Repository(git_commit_owner(pointer))
+    }
+
     /// The tree containing the commit, if any.
     public var tree: Tree? {
         let id = Object.ID(rawValue: git_commit_tree_id(pointer).pointee)
