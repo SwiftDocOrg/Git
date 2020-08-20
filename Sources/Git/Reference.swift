@@ -69,13 +69,12 @@ public class Reference/*: Identifiable */ {
         }
     }
 
-    public static func normalize(name: String, format: Format) throws -> String {
+    public static func normalize(name: String, format: Format = .normal) throws -> String {
         let length = name.underestimatedCount * 2
-        let string = UnsafeMutablePointer<Int8>.allocate(capacity: length)
-        try name.withCString { cString in
-            try attempt { git_reference_normalize_name(string, length, cString, format.rawValue.rawValue) }
-        }
-        return String(bytesNoCopy: string, length: length, encoding: .ascii, freeWhenDone: true)!
+        let cString = UnsafeMutablePointer<Int8>.allocate(capacity: length)
+        defer { cString.deallocate() }
+        try attempt { git_reference_normalize_name(cString, length, name, format.rawValue.rawValue) }
+        return String(validatingUTF8: cString)!
     }
 
     /// The reference name.
