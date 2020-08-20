@@ -55,14 +55,20 @@ final class GitTests: XCTestCase {
 
         do {
             let index = repository.index
-            let entries = index?.entries.compactMap { $0.blob }
-            XCTAssertEqual(entries?.count, 9)
+            let blobs = index?.compactMap { $0.blob }
+            XCTAssertEqual(blobs?.count, 9)
 
             let revisions = try repository.revisions { walker in
                 try walker.pushHead()
             }
 
             XCTAssertEqual(Array(revisions.compactMap { $0.message }), ["Initial commit\n"])
+
+            let entry = index?["Sources/StringLocationConverter/Location.swift"]
+            XCTAssertNotNil(entry)
+
+            let source = String(data: entry!.blob!.data, encoding: .utf8)!
+            XCTAssert(source.hasPrefix("/// A location within a string when displayed with newlines."))
         }
     }
 
