@@ -98,7 +98,7 @@ final class GitTests: XCTestCase {
         XCTAssertNotNil(blob)
         XCTAssertEqual(String(data: blob!.data, encoding: .utf8), "Hello, world!")
 
-        let note = try commit.add(note: #"{"test": true }"#)
+        let note = try commit.add(note: #"{"test": true }"#, author: signature, committer: signature)
         XCTAssertNotNil(note?.message, #"{"test": true }"#)
     }
 }
