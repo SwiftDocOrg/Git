@@ -13,4 +13,11 @@ public final class Note: Reference {
     public var committer: Signature {
         return Signature(rawValue: git_commit_committer(pointer).pointee)
     }
+
+    /// The target of the reference.
+    public var target: Object? {
+        try? owner.lookup(Object.ID { oid in
+            git_note_id(pointer)
+        })
+    }
 }

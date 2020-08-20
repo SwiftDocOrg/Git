@@ -2,10 +2,20 @@ import Clibgit2
 
 /// A named reference to a commit.
 public final class Branch: Reference {
-    /// A pointer to the referenced commit.
+    /// The referenced commit.
     public var commit: Commit? {
-        guard let target = target else { return nil }
-        return try? owner.lookup(target)
+        let id: Object.ID
+        switch git_reference_type(pointer) {
+        case GIT_REFERENCE_SYMBOLIC:
+            var resolved: OpaquePointer?
+            guard case .success = result(of: { git_reference_resolve(&resolved, pointer) }) else { return nil }
+            defer { git_reference_free(resolved) }
+            id = Object.ID(rawValue: git_reference_target(resolved).pointee)
+        default:
+            id = Object.ID(rawValue: git_reference_target(pointer).pointee)
+        }
+
+        return try? owner.lookup(id)
     }
 
     /// The short name of the branch.
