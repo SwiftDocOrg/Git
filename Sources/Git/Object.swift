@@ -18,6 +18,11 @@ public class Object {
 
     private var managed: Bool = false
 
+    /// The repository containing the object.
+    public var owner: Repository {
+        return Repository(git_object_owner(pointer))
+    }
+
     required init(_ pointer: OpaquePointer) {
         self.pointer = pointer
         assert(Swift.type(of: self) != Object.self)
@@ -54,11 +59,6 @@ public class Object {
     /// The object's ID.
     public var id: ID {
         return ID(rawValue: git_object_id(pointer).pointee)
-    }
-
-    /// The repository containing the object.
-    public var owner: Repository {
-        return Repository(git_commit_owner(pointer))
     }
 
     /// The note attached to the object, if any.
