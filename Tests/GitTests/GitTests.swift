@@ -84,7 +84,7 @@ final class GitTests: XCTestCase {
         try repository.add(paths: ["hello.txt"])
 
         let signature = try Signature(name: "Mona Lisa Octocat", email: "mona@github.com")
-        let commit = try repository.commit(message: "Initial commit", author: signature, committer: signature)
+        let commit = try repository.createCommit(message: "Initial commit", author: signature, committer: signature)
 
         XCTAssertEqual(repository.head?.commit, commit)
         XCTAssertEqual(commit.message, "Initial commit")

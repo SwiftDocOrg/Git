@@ -193,7 +193,7 @@ public final class Repository {
     }
 
     @discardableResult
-    public func commit(message: String, author: Signature? = nil, committer: Signature? = nil) throws -> Commit {
+    public func createCommit(message: String, author: Signature? = nil, committer: Signature? = nil) throws -> Commit {
         let tree = try lookup(try Object.ID { oid in
             try attempt { git_index_write_tree(oid, index?.pointer) }
         }) as Tree?
