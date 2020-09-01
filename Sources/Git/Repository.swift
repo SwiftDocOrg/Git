@@ -209,14 +209,14 @@ public final class Repository {
     }
 
     /// Creates a lightweight tag.
-    public func tag(name: String, target: Object, force: Bool = false) throws {
+    public func createLightweightTag(named name: String, target: Object, force: Bool = false) throws {
         let _ = try Object.ID { oid in
             try attempt { git_tag_create_lightweight(oid, self.pointer, name, target.pointer, force ? 1 : 0) }
         }
     }
 
     /// Creates an annotated tag.
-    public func tag(name: String, target: Object, tagger: Signature? = nil, message: String, force: Bool = false) throws {
+    public func createAnnotatedTag(named name: String, target: Object, tagger: Signature? = nil, message: String, force: Bool = false) throws {
         var signature = try (tagger ?? Signature.default(for: self)).rawValue
         let _ = try Object.ID { oid in
             try attempt { git_tag_create(oid, self.pointer, name, target.pointer, &signature, message, force ? 1 : 0) }
