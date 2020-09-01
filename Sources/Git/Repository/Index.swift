@@ -174,7 +174,7 @@ extension Repository.Index {
         /// The blob object for the index entry, if any.
         public var blob: Blob? {
             let id = Object.ID(rawValue: rawValue.id)
-            return try? index?.owner.lookup(id)
+            return try? index?.owner.lookup(type: Blob.self, with: id)
         }
 
         public var isConflict: Bool {

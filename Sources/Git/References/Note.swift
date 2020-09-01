@@ -15,8 +15,8 @@ public final class Note: Reference {
     }
 
     /// The target of the reference.
-    public var target: Object? {
-        try? owner.lookup(Object.ID { oid in
+    public override var target: Object? {
+        try? owner.lookup(type: Object.self, with: Object.ID { oid in
             git_note_id(pointer)
         })
     }

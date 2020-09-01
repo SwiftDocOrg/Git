@@ -104,6 +104,10 @@ final class GitTests: XCTestCase {
         try repository.createLightweightTag(named: "0.0.1", target: commit)
         let names = try repository.tagNames()
         XCTAssert(names.contains("0.0.1"))
+
+        XCTAssertEqual((repository["0.0.1"]?.target as? Commit)?.message, "Initial commit")
+        XCTAssertEqual((repository["master"]?.target as? Commit)?.message, "Initial commit")
+        XCTAssertEqual((repository["HEAD"]?.target as? Commit)?.message, "Initial commit")
     }
 }
 

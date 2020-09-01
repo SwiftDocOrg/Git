@@ -45,7 +45,7 @@ public final class Repository {
     public static func clone(from remoteURL: URL,
                              to localURL: URL,
                              configuration: Clone.Configuration = .default) throws -> Repository {
-        var pointer: OpaquePointer? = nil
+        var pointer: OpaquePointer?
 
         var options = configuration.rawValue
         let remoteURLString = remoteURL.isFileURL ? remoteURL.path : remoteURL.absoluteString
@@ -57,6 +57,15 @@ public final class Repository {
     }
 
     // MARK: -
+
+    public subscript<T: Reference>(_ shorthand: String) -> T? {
+        var pointer: OpaquePointer?
+        guard case .success = result(of: { git_reference_dwim(&pointer, self.pointer, shorthand) }),
+              pointer != nil
+        else { return nil }
+
+        return T(pointer!)
+    }
 
     /**
      The repository's working directory.
@@ -83,7 +92,8 @@ public final class Repository {
     public lazy var index: Index? = {
         var pointer: OpaquePointer?
         guard case .success = result(of: { git_repository_index(&pointer, self.pointer) }),
-              pointer != nil else { return nil }
+              pointer != nil
+        else { return nil }
         let index = Index(pointer!)
         index.managed = true
 
@@ -124,14 +134,26 @@ public final class Repository {
      - Throws: An error if no object exists for the
      - Returns: The corresponding object.
      */
-    public func lookup<T: Object>(_ id: Object.ID) throws -> T? {
-        var result: OpaquePointer? = nil
+    func lookup<T: Object>(type: T.Type, with id: Object.ID) throws -> T? {
+        var pointer: OpaquePointer?
         var oid = id.rawValue
-        try attempt { git_object_lookup(&result, self.pointer, &oid, T.type) }
+        try attempt { git_object_lookup(&pointer, self.pointer, &oid, T.type) }
 //        defer { git_object_free(pointer) }
-        guard let pointer = result else { return nil }
 
-        return T(pointer)
+        switch type {
+        case is Blob.Type,
+             is Commit.Type,
+             is Tree.Type:
+            return T(pointer!)
+        default:
+            return Object.type(of: pointer)?.init(pointer!) as? T
+        }
+    }
+
+    func lookup<T: Reference>(type: T.Type, named name: String) throws -> T? {
+        var pointer: OpaquePointer?
+        try attempt { git_reference_lookup(&pointer, self.pointer, name) }
+        return T(pointer!)
     }
 
     /**
@@ -170,16 +192,16 @@ public final class Repository {
 
     @discardableResult
     public func createCommit(message: String, author: Signature? = nil, committer: Signature? = nil) throws -> Commit {
-        let tree = try lookup(try Object.ID { oid in
+        let tree = try lookup(type: Tree.self, with: try Object.ID { oid in
             try attempt { git_index_write_tree(oid, index?.pointer) }
-        }) as Tree?
+        })
 
         var committer = (try committer ?? author ?? Signature.default(for: self)).rawValue
         var author = (try author ?? Signature.default(for: self)).rawValue
 
         var parents = [head?.commit].compactMap { $0?.pointer } as [OpaquePointer?]
 
-        return try lookup(try Object.ID { oid in
+        return try lookup(type: Commit.self, with: try Object.ID { oid in
             try attempt { git_commit_create(oid, pointer, "HEAD", &author, &committer, "UTF-8", message, tree?.pointer, parents.count, &parents) }
         })!
     }

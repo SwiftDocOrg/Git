@@ -8,16 +8,10 @@ public final class Tag: Reference {
     }
 
     /// The target of the reference.
-    public var target: Object? {
+    public override var target: Object? {
         var target: OpaquePointer?
         guard case .success = result(of: { git_tag_target(&target, self.pointer) }) else { return nil }
         return Object.type(of: git_tag_target_type(self.pointer))?.init(target!)
-    }
-
-    public func peel() throws -> Object? {
-        var pointer: OpaquePointer?
-        try attempt { git_tag_peel(&pointer, self.pointer) }
-        return Object(pointer!)
     }
 }
 
@@ -43,6 +37,12 @@ extension Tag {
         /// The tag message, if any.
         public var message: String? {
             return String(validatingUTF8: git_tag_message(pointer))
+        }
+
+        public func peel<T: Object>() throws -> T? {
+            var pointer: OpaquePointer?
+            try attempt { git_tag_peel(&pointer, self.pointer) }
+            return T(pointer!)
         }
     }
 

@@ -94,7 +94,7 @@ extension Repository {
             defer { pointer.deallocate() }
             guard case .success = result(of: { git_revwalk_next(pointer, self.pointer) }) else { return nil }
             let id = Object.ID(rawValue: pointer.pointee)
-            return try? repository.lookup(id)
+            return try? repository.lookup(type: Commit.self, with: id)
         }
 
         // MARK: - RevisionWalker

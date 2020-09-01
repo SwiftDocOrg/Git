@@ -25,14 +25,22 @@ public class Object {
 
     required init(_ pointer: OpaquePointer) {
         self.pointer = pointer
-        assert(Swift.type(of: self) == Object.self ||
-                git_object_type(pointer) == Swift.type(of: self).type)
+        assert(Swift.type(of: self) == Object.self || git_object_type(pointer) == Swift.type(of: self).type)
     }
 
     deinit {
         if managed {
             git_repository_free(pointer)
         }
+    }
+
+    class func type(of object: Object) -> Object.Type? {
+        return Object.type(of: object.pointer)
+    }
+
+    class func type(of pointer: OpaquePointer?) -> Object.Type? {
+        guard let pointer = pointer else { return nil }
+        return Object.type(of: git_object_type(pointer))
     }
 
     class func type(of value: git_object_t?) -> Object.Type? {

@@ -12,7 +12,7 @@ public final class Commit: Object {
     /// The tree containing the commit, if any.
     public var tree: Tree? {
         let id = Object.ID(rawValue: git_commit_tree_id(pointer).pointee)
-        return try? owner.lookup(id)
+        return try? owner.lookup(type: Tree.self, with: id)
     }
 
     /// The parents of the commit.
@@ -20,7 +20,7 @@ public final class Commit: Object {
         var parents: [Commit] = []
         for n in 0..<git_commit_parentcount(pointer) {
             let id = Object.ID(rawValue: git_commit_parent_id(pointer, n).pointee)
-            guard let commit = try? owner.lookup(id) as? Commit else { continue }
+            guard let commit = try? owner.lookup(type: Commit.self, with: id) else { continue }
             parents.append(commit)
         }
 

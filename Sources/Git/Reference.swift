@@ -86,6 +86,21 @@ public class Reference/*: Identifiable */ {
     public var owner: Repository {
         return Repository(git_reference_owner(pointer))
     }
+
+    var target: Object? {
+        let id: Object.ID
+        switch git_reference_type(pointer) {
+        case GIT_REFERENCE_SYMBOLIC:
+            var resolved: OpaquePointer?
+            guard case .success = result(of: { git_reference_resolve(&resolved, pointer) }) else { return nil }
+            defer { git_reference_free(resolved) }
+            id = Object.ID(rawValue: git_reference_target(resolved).pointee)
+        default:
+            id = Object.ID(rawValue: git_reference_target(pointer).pointee)
+        }
+
+        return try? owner.lookup(type: Object.self, with: id)
+    }
 }
 
 // MARK: - Equatable

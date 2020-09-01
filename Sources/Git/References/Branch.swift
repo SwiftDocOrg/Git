@@ -15,7 +15,7 @@ public final class Branch: Reference {
             id = Object.ID(rawValue: git_reference_target(pointer).pointee)
         }
 
-        return try? owner.lookup(id)
+        return try? owner.lookup(type: Commit.self, with: id)
     }
 
     /// The short name of the branch.
