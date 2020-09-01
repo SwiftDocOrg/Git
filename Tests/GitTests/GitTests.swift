@@ -98,7 +98,7 @@ final class GitTests: XCTestCase {
         XCTAssertNotNil(blob)
         XCTAssertEqual(String(data: blob!.data, encoding: .utf8), "Hello, world!")
 
-        let note = try commit.add(note: #"{"test": true }"#, author: signature, committer: signature)
+        let note = try commit.addNote(#"{"test": true }"#, author: signature, committer: signature)
         XCTAssertNotNil(note?.message, #"{"test": true }"#)
 
         try repository.createLightweightTag(named: "0.0.1", target: commit)
@@ -108,6 +108,7 @@ final class GitTests: XCTestCase {
         XCTAssertEqual((repository["0.0.1"]?.target as? Commit)?.message, "Initial commit")
         XCTAssertEqual((repository["master"]?.target as? Commit)?.message, "Initial commit")
         XCTAssertEqual((repository["HEAD"]?.target as? Commit)?.message, "Initial commit")
+        XCTAssertEqual((repository["HEAD"]?.target as? Commit)?.note?.message, #"{"test": true }"#)
     }
 }
 

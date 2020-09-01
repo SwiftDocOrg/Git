@@ -80,7 +80,7 @@ public class Object {
     }
 
     @discardableResult
-    public func add(note: String, author: Signature? = nil, committer: Signature? = nil, force: Bool = false) throws -> Note? {
+    public func addNote(_ message: String, author: Signature? = nil, committer: Signature? = nil, force: Bool = false) throws -> Note? {
         let repository = owner
 
         var committer = (try committer ?? author ?? Signature.default(for: repository)).rawValue
@@ -89,7 +89,7 @@ public class Object {
         // TODO determine parent Note commit
 
         var objectOID = id.rawValue
-        try attempt { git_note_create(nil, repository.pointer, nil, &author, &committer, &objectOID, note, force ? 1 : 0) }
+        try attempt { git_note_create(nil, repository.pointer, nil, &author, &committer, &objectOID, message, force ? 1 : 0) }
 
         return self.note
     }
