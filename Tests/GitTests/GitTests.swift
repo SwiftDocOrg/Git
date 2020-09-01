@@ -81,7 +81,7 @@ final class GitTests: XCTestCase {
         Hello, world!
         """.write(toFile: localURL.appendingPathComponent("hello.txt").path, atomically: true, encoding: .utf8)
 
-        try repository.add(paths: ["hello.txt"])
+        try repository.index?.add(paths: ["hello.txt"])
 
         let signature = try Signature(name: "Mona Lisa Octocat", email: "mona@github.com")
         let commit = try repository.createCommit(message: "Initial commit", author: signature, committer: signature)

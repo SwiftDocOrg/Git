@@ -168,30 +168,6 @@ public final class Repository {
         return (ahead, behind)
     }
 
-    public func add(path: String, force: Bool = false) throws {
-        try path.withCString { cString in
-            try attempt { git_index_add_bypath(index?.pointer, cString) }
-        }
-    }
-
-    // TODO: Add dry-run option
-    public func add(paths: [String], update: Bool = false, force: Bool = false, disableGlobExpansion: Bool = false) throws {
-        let options = (force ? GIT_INDEX_ADD_FORCE.rawValue : 0) |
-                        (disableGlobExpansion ? GIT_INDEX_ADD_DISABLE_PATHSPEC_MATCH.rawValue : 0)
-
-        try paths.withGitStringArray { array in
-            try withUnsafePointer(to: array) { paths in
-                if update {
-                    try attempt { git_index_update_all(index?.pointer, paths, nil, nil) }
-                } else {
-                    try attempt { git_index_add_all(index?.pointer, paths, options, nil, nil) }
-                }
-            }
-        }
-
-        try attempt { git_index_write(index?.pointer) }
-    }
-
     @discardableResult
     public func createCommit(message: String, author: Signature? = nil, committer: Signature? = nil) throws -> Commit {
         let tree = try lookup(try Object.ID { oid in
