@@ -87,7 +87,7 @@ public class Reference/*: Identifiable */ {
         return Repository(git_reference_owner(pointer))
     }
 
-    var target: Object? {
+    public var target: Object? {
         let id: Object.ID
         switch git_reference_type(pointer) {
         case GIT_REFERENCE_SYMBOLIC:
