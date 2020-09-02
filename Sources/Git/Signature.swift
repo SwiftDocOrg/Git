@@ -82,6 +82,14 @@ extension Signature: Hashable {
     }
 }
 
+// MARK: - CustomStringConvertible
+
+extension Signature: CustomStringConvertible {
+    public var description: String {
+        return "\(name) <\(email)>"
+    }
+}
+
 // MARK: - Codable
 
 extension Signature: Codable {
