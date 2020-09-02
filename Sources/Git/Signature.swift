@@ -4,17 +4,11 @@ import Foundation
 /**
  An action signature (e.g. for committers, taggers, etc).
  */
-public class Signature /*: internal RawRepresentable*/ {
+public struct Signature /*: internal RawRepresentable*/ {
     var rawValue: git_signature
-    var managed: Bool = false
 
     init(rawValue: git_signature) {
         self.rawValue = rawValue
-    }
-
-    deinit {
-        guard managed else { return }
-        git_signature_free(&rawValue)
     }
 
     public static func `default`(for repository: Repository) throws -> Signature {
@@ -36,17 +30,16 @@ public class Signature /*: internal RawRepresentable*/ {
         - time: The time at which the action occurred.
         - timeZone: The time's corresponding time zone.
      */
-    public convenience init(name: String,
-                            email: String,
-                            time: Date = Date(),
-                            timeZone: TimeZone = TimeZone.current) throws
+    public init(name: String,
+                email: String,
+                time: Date = Date(),
+                timeZone: TimeZone = TimeZone.current) throws
     {
         var pointer: UnsafeMutablePointer<git_signature>?
         let offset = Int32(timeZone.secondsFromGMT(for: time) / 60)
         let time = git_time_t(time.timeIntervalSince1970)
         try attempt { git_signature_new(&pointer, name, email, time, offset) }
         self.init(rawValue: pointer!.pointee)
-//        managed = true
     }
 
     /// The name of the signer.
@@ -86,5 +79,34 @@ extension Signature: Hashable {
         hasher.combine(email)
         hasher.combine(rawValue.when.time)
         hasher.combine(rawValue.when.offset)
+    }
+}
+
+// MARK: - Codable
+
+extension Signature: Codable {
+    private enum CodingKeys: String, CodingKey {
+        case name
+        case email
+        case time
+        case timeZone
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let name = try container.decode(String.self, forKey: .name)
+        let email = try container.decode(String.self, forKey: .email)
+        let time = try container.decode(Date.self, forKey: .time)
+        let timeZone = try container.decode(TimeZone.self, forKey: .timeZone)
+
+        try self.init(name: name, email: email, time: time, timeZone: timeZone)
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(name, forKey: .name)
+        try container.encode(email, forKey: .email)
+        try container.encode(time, forKey: .time)
+        try container.encode(timeZone, forKey: .timeZone)
     }
 }
