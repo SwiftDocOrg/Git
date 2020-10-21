@@ -20,6 +20,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v1
+      - uses: actions/cache@v2
+        with:
+          path: .build
+          key: ${{ runner.os }}-spm-xcode-${{ matrix.xcode }}-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: ${{ runner.os }}-spm-xcode-${{ matrix.xcode }}-
       - name: Install libgit2
         run: brew install libgit2
       - name: Build and Test
@@ -42,6 +47,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v1
+      - uses: actions/cache@v2
+        with:
+          path: .build
+          key: ${{ runner.os }}-spm-swift-${{ matrix.swift }}-${{ hashFiles('**/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-swift-${{ matrix.swift }}-
       - name: Install libgit2
         run: |
           apt-get -qq update
