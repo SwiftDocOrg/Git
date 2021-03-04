@@ -28,7 +28,7 @@ jobs:
           DEVELOPER_DIR: /Applications/Xcode_${{ matrix.xcode }}.app/Contents/Developer
 
   linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     strategy:
       matrix:
@@ -45,12 +45,6 @@ jobs:
       - name: Install libgit2
         run: |
           apt-get -qq update
-          apt-get install -y curl unzip cmake libssl-dev libssh2-1-dev python
-          curl -L -o libgit2.zip https://github.com/libgit2/libgit2/releases/download/v1.0.1/libgit2-1.0.1.zip
-          unzip -q libgit2.zip
-          cd libgit2-1.0.1
-          ls
-          cmake . -DCMAKE_INSTALL_PREFIX=/usr
-          cmake --build . --target install
+          apt-get install -y libgit2-dev=1.1.0
       - name: Build and Test
         run: swift test --enable-test-discovery
