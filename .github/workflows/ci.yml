@@ -45,6 +45,6 @@ jobs:
       - name: Install libgit2
         run: |
           apt-get -qq update
-          apt-get install -y libgit2-dev
+          apt-get install -y libgit2-dev=1.1.0
       - name: Build and Test
         run: swift test --enable-test-discovery
